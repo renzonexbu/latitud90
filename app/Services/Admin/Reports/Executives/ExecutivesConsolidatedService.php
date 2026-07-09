@@ -52,12 +52,15 @@ class ExecutivesConsolidatedService
                 ->orderBy('id', 'asc')
                 ->get(['id', 'amount']);
 
-            // Calcular saldo progresivo
-            $runningBalance = $price;
+            // Calcular saldo progresivo — misma convención que el Estado de Cuenta Parcial:
+            //   Positivo = excedente a favor del pagador (pagó de más, o el programa bajó de precio)
+            //   Negativo = saldo deudor (aún debe pagar)
+            //   Cero     = pago exacto del precio actual del programa
+            $accumulatedPaid = 0;
             foreach ($allPayments as $p) {
-                $runningBalance -= $p->amount;
+                $accumulatedPaid += $p->amount;
                 // Si está de baja, saldo queda en $0 (ya no debe nada)
-                $balanceMap[$p->id] = $isDeBaja ? 0 : round(max($runningBalance, 0), 0);
+                $balanceMap[$p->id] = $isDeBaja ? 0 : round($accumulatedPaid - $price, 0);
             }
         }
 
@@ -176,11 +179,23 @@ class ExecutivesConsolidatedService
             // Saldo progresivo: refleja el impacto de cada pago/devolución
             $saldo = $balanceMap[$payment->id] ?? 0;
 
-            // Monto liberado (descuento tipo 'released')
+            // Monto liberado (descuento tipo 'released'): puede venir por porcentaje, monto o ambos.
+            // Si solo se lee 'amount', se pierden los descuentos definidos por porcentaje (caso común).
             $liberatedAmount = 0;
-            if ($participantProgram && $participantProgram->discounts) {
-                $releasedDiscount = $participantProgram->discounts->where('discount_type', 'released')->first();
-                $liberatedAmount = $releasedDiscount ? $releasedDiscount->amount : 0;
+            if ($participantProgram && $program) {
+                $basePriceForLiberated = $participant
+                    ? (float) (\App\Helpers\ParticipantPriceHelper::calculateParticipantPrice($participant, $program)['base_price'] ?? 0)
+                    : 0.0;
+
+                foreach ($participantProgram->discounts->where('discount_type', 'released') as $rd) {
+                    if ($rd->percent && $rd->percent > 0) {
+                        $liberatedAmount += ($basePriceForLiberated * $rd->percent) / 100;
+                    }
+                    if ($rd->amount && $rd->amount > 0) {
+                        $liberatedAmount += (float) $rd->amount;
+                    }
+                }
+                $liberatedAmount = round($liberatedAmount, 2);
             }
 
             // Contacto pagador: para reembolsos, buscar en la orden del pago original
@@ -373,11 +388,23 @@ class ExecutivesConsolidatedService
             // Saldo progresivo: refleja el impacto de cada pago/devolución
             $saldo = $balanceMap[$payment->id] ?? 0;
 
-            // Monto liberado (descuento tipo 'released')
+            // Monto liberado (descuento tipo 'released'): puede venir por porcentaje, monto o ambos.
+            // Si solo se lee 'amount', se pierden los descuentos definidos por porcentaje (caso común).
             $liberatedAmount = 0;
-            if ($participantProgram && $participantProgram->discounts) {
-                $releasedDiscount = $participantProgram->discounts->where('discount_type', 'released')->first();
-                $liberatedAmount = $releasedDiscount ? $releasedDiscount->amount : 0;
+            if ($participantProgram && $program) {
+                $basePriceForLiberated = $participant
+                    ? (float) (\App\Helpers\ParticipantPriceHelper::calculateParticipantPrice($participant, $program)['base_price'] ?? 0)
+                    : 0.0;
+
+                foreach ($participantProgram->discounts->where('discount_type', 'released') as $rd) {
+                    if ($rd->percent && $rd->percent > 0) {
+                        $liberatedAmount += ($basePriceForLiberated * $rd->percent) / 100;
+                    }
+                    if ($rd->amount && $rd->amount > 0) {
+                        $liberatedAmount += (float) $rd->amount;
+                    }
+                }
+                $liberatedAmount = round($liberatedAmount, 2);
             }
 
             // Contacto pagador: para reembolsos, buscar en la orden del pago original

@@ -73,9 +73,39 @@ const localFilters = reactive({
     status: props.filters.status || '',
 });
 
-const exportData = () => {
+const exportData = async () => {
     const params = new URLSearchParams(localFilters);
-    window.open(`/admin/reports/executives/export/partial-account?${params.toString()}`, '_blank');
+    const url = `/admin/reports/executives/export/partial-account?${params.toString()}`;
+
+    try {
+        const response = await fetch(url, { headers: { 'Accept': 'application/json, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' } });
+
+        // Si el response es JSON, es un error
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+            const data = await response.json();
+            const detail = data.error_detail ? `\n\nDetalle: ${data.error_detail}` : '';
+            const location = data.error_location ? `\nEn: ${data.error_location}` : '';
+            alert((data.message || 'Error al exportar') + detail + location);
+            return;
+        }
+
+        // Si es archivo, descargarlo
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        // Obtener nombre del archivo desde el header Content-Disposition si está disponible
+        const disposition = response.headers.get('content-disposition') || '';
+        const match = disposition.match(/filename="?([^"]+)"?/);
+        a.download = match ? match[1] : 'estado_cuenta_parcial.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+        alert('Error de red al exportar: ' + error.message);
+    }
 };
 
 const onFiltersChanged = (filters) => {

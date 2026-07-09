@@ -132,8 +132,9 @@ class ExportService
                 // Aplicar formato de moneda a las columnas numéricas
                 $sheet->getStyle('F' . $row)->getNumberFormat()->setFormatCode('#,##0');
                 $sheet->getStyle('M' . $row)->getNumberFormat()->setFormatCode('#,##0');
-                // Saldo: positivo (deuda) en rojo con paréntesis, negativo (excedente) en azul
-                $sheet->getStyle('N' . $row)->getNumberFormat()->setFormatCode('[Red]\(#,##0\);[Blue]#,##0;0');
+                // Saldo: positivo (excedente a favor del pagador) en azul, negativo (deuda) en rojo
+                // Misma convención que el Estado de Cuenta Parcial
+                $sheet->getStyle('N' . $row)->getNumberFormat()->setFormatCode('[Blue]#,##0;[Red]\(#,##0\);0');
 
                 $row++;
             }
@@ -262,11 +263,17 @@ class ExportService
                 'message' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
+                'filters' => $filters,
+                'trace' => $e->getTraceAsString(),
             ]);
-            $filename = 'apoderados_executives_partial_account_' . Carbon::now('America/Santiago')->format('Y-m-d_H-i-s') . '.csv';
-            return $this->streamCsv($filename, [[
-                'Error', 'No se pudo generar el archivo Excel'
-            ]]);
+            // Responder con error JSON real en vez de un CSV silencioso.
+            // El frontend muestra el mensaje al usuario en lugar de descargar un archivo inservible.
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo generar el Excel del Estado de Cuenta Parcial.',
+                'error_detail' => $e->getMessage(),
+                'error_location' => basename($e->getFile()) . ':' . $e->getLine(),
+            ], 500);
         }
     }
 
@@ -488,14 +495,20 @@ class ExportService
             $normalPayments = 0.0;
             $aporteAmount = 0.0;
 
+            // Inicializar variables fuera del bloque para evitar "Undefined variable" cuando
+            // el participante no tiene órdenes (ej: aún no ha pagado ni iniciado suscripción).
+            $activePlan = null;
+            $normalPayments = 0.0;
+            $aporteAmount = 0.0;
+            $totalInstallments = 0;
+            $paidInstallments = 0;
+
             if (!empty($orderIds)) {
                 // Heurística por capas:
                 // 1. Suscripción ACTIVA → su plan (aunque tenga status='cancelled' por
                 //    inconsistencia de datos).
                 // 2. Si no, plan más reciente no cancelado vinculado a algún order.
                 // 3. Si no, Pago Total (1 cuota).
-                $activePlan = null;
-
                 $activeSubscription = \App\Models\ProgramSubscription::where('participant_id', $pp->participant_id)
                     ->where('program_id', $programCourse->id)
                     ->where('status', 'ACTIVA')

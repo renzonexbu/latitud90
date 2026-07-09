@@ -193,15 +193,18 @@ const formatPrice = (price) => {
 
 const formatBalance = (balance) => {
     const n = Math.round(Number(balance) || 0);
-    if (n > 0) return '(' + n.toLocaleString('es-CL') + ')';
-    if (n < 0) return Math.abs(n).toLocaleString('es-CL');
-    return '0';
+    // Misma convención que el Estado de Cuenta Parcial:
+    // Positivo = excedente (sin paréntesis), Negativo = deuda (entre paréntesis)
+    if (n < 0) return `(${Math.abs(n).toLocaleString('es-CL')})`;
+    return n.toLocaleString('es-CL');
 };
 
 const getBalanceClass = (balance) => {
     const n = Number(balance) || 0;
-    if (n > 0) return 'text-red-600';
-    if (n < 0) return 'text-blue-600';
+    // Misma convención que el Estado de Cuenta Parcial:
+    // Positivo (excedente) en verde, Negativo (deuda) en rojo
+    if (n > 0) return 'text-green-600';
+    if (n < 0) return 'text-red-600';
     return 'text-gray-600';
 };
 
