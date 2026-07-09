@@ -70,6 +70,24 @@ class ValidatePaymentEligibilityService
             ];
         }
 
+        // Si hay una suscripción PAT ACTIVA para este participante+programa, bloquear pagos contado
+        // (evita doble cobro: el PAT sigue cobrando cuotas mensuales y se duplicaría con un contado)
+        $paymentType = $paymentData['paymentType'] ?? 'total';
+        if ($paymentType !== 'monthly') {
+            $activeSubscription = \App\Models\ProgramSubscription::where('participant_id', $participant->id)
+                ->where('program_id', $programCourse->id)
+                ->where('status', 'ACTIVA')
+                ->whereNotNull('virtualpos_subscription_id')
+                ->first();
+
+            if ($activeSubscription) {
+                return [
+                    'success' => false,
+                    'error' => 'Este participante ya cuenta con una suscripción PAT activa para este programa. Para evitar doble cobro, debe primero cancelar la suscripción antes de pagar de contado.'
+                ];
+            }
+        }
+
         // Para pagos mensuales, validar número mínimo de cuotas
         if (($paymentData['paymentType'] ?? 'total') === 'monthly') {
             $installments = (int) ($paymentData['installments'] ?? 1);
