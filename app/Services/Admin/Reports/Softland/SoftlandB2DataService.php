@@ -49,15 +49,27 @@ class SoftlandB2DataService
             'total_payments' => $payments->count()
         ]);
 
+        // Agrupar payments por número de boleta. Una boleta puede cubrir a varios
+        // participantes (aportes, pagos compartidos), pero Softland necesita un único
+        // asiento contable por documento con el monto total, no un desglose por payment.
+        // Los payments sin bsale_number (raros pero posibles) se emiten individualmente
+        // usando el ID del payment como clave única para no colapsarlos entre sí.
+        $groups = $payments->groupBy(fn($p) => !empty($p->bsale_number)
+            ? 'B:' . $p->bsale_number
+            : 'P:' . $p->id);
+
         $debitMovements = collect();
         $creditMovements = collect();
 
-        foreach ($payments as $payment) {
+        foreach ($groups as $group) {
+            $representative = $group->first();
+            $totalAmount = (int) $group->sum(fn($p) => abs($p->amount));
+
             // DEBE: 1-1-02-010 (cargo boleta)
-            $debitMovements->push($this->createDebitMovement($payment));
+            $debitMovements->push($this->createDebitMovement($representative, $totalAmount));
 
             // HABER: 3-1-01-021 (ingreso)
-            $creditMovements->push($this->createCreditMovement($payment));
+            $creditMovements->push($this->createCreditMovement($representative, $totalAmount));
         }
 
         // Primero todos los DEBE, luego todos los HABER
@@ -65,6 +77,7 @@ class SoftlandB2DataService
 
         Log::info('SoftlandB2DataService: Movimientos B2 generados', [
             'total_payments' => $payments->count(),
+            'boletas_unicas' => $groups->count(),
             'total_movements' => $movements->count()
         ]);
 
@@ -73,10 +86,11 @@ class SoftlandB2DataService
 
     /**
      * DEBE: Cargo boleta - cuenta 1-1-02-010
+     * $amount es el total agrupado por boleta (suma de todos los payments con
+     * el mismo bsale_number), NO el monto del payment individual.
      */
-    private function createDebitMovement(Payment $payment): array
+    private function createDebitMovement(Payment $payment, int $amount): array
     {
-        $amount = (int) abs($payment->amount);
         $boletaNumber = $payment->bsale_number ?? '';
         $buyerName = $this->getBuyerName($payment);
         $auxiliaryCode = $this->formatAuxiliaryCode($payment);
@@ -105,10 +119,11 @@ class SoftlandB2DataService
 
     /**
      * HABER: Ingreso - cuenta 3-1-01-021
+     * $amount es el total agrupado por boleta (suma de todos los payments con
+     * el mismo bsale_number), NO el monto del payment individual.
      */
-    private function createCreditMovement(Payment $payment): array
+    private function createCreditMovement(Payment $payment, int $amount): array
     {
-        $amount = (int) abs($payment->amount);
         $boletaNumber = $payment->bsale_number ?? '';
         $programCode = $this->getProgramCode($payment);
 

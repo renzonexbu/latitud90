@@ -285,6 +285,9 @@ class ImportManualPaymentsService
         $buyerRut = RutHelper::clean(
             $rawData['rut_pagador'] ?? $rowData['rut_pagador'] ?? $participant->document_number ?? null
         );
+        $buyerDocTypeId = $this->resolveBuyerDocumentTypeId(
+            $rawData['tipo_doc_pagador'] ?? $rowData['tipo_doc_pagador'] ?? null
+        );
 
         $orderDetail = OrderDetail::create([
             'order_id' => $order->id,
@@ -292,6 +295,7 @@ class ImportManualPaymentsService
             'payment_gateway_id' => $paymentGateway?->id,
             'name' => $buyerName,
             'email' => $buyerEmail,
+            'document_type' => $buyerDocTypeId,
             'document_number' => $buyerRut,
             'base_amount' => $paymentAmount,
             'discount_amount' => 0,
@@ -1270,6 +1274,9 @@ class ImportManualPaymentsService
             $buyerRut = RutHelper::clean(
                 $rowData['rut_pagador'] ?? $participant->document_number ?? null
             );
+            $buyerDocTypeId = $this->resolveBuyerDocumentTypeId(
+                $rowData['tipo_doc_pagador'] ?? null
+            );
 
             $orderDetail = OrderDetail::create([
                 'order_id' => $order->id,
@@ -1282,7 +1289,7 @@ class ImportManualPaymentsService
                 'city' => null,
                 'code_phone' => null,
                 'phone' => null,
-                'document_type' => null,
+                'document_type' => $buyerDocTypeId,
                 'document_number' => $buyerRut,
                 'installment_number' => null,
                 'installments_number' => $rowData['cuotas'] ?? null,
@@ -1512,6 +1519,9 @@ class ImportManualPaymentsService
             $buyerRut = RutHelper::clean(
                 $rowData['rut_pagador'] ?? $participant->document_number ?? null
             );
+            $buyerDocTypeId = $this->resolveBuyerDocumentTypeId(
+                $rowData['tipo_doc_pagador'] ?? null
+            );
 
             $orderDetail = OrderDetail::create([
                 'order_id' => $order->id,
@@ -1519,6 +1529,7 @@ class ImportManualPaymentsService
                 'payment_gateway_id' => $paymentGateway?->id,
                 'name' => $buyerName,
                 'email' => $participant->email,
+                'document_type' => $buyerDocTypeId,
                 'document_number' => $buyerRut,
                 'base_amount' => $paymentAmount,
                 'discount_amount' => 0,
@@ -1992,7 +2003,8 @@ class ImportManualPaymentsService
             'nombre' => ['nombre del participante', 'nombre participante', 'nombre', 'alumno (a)', 'alumno'],
             'contacto_pagador' => ['contacto pagador', 'nombre pagador', 'pagador'],
             'email_contacto_pagador' => ['email contacto pagador', 'email pagador', 'correo pagador', 'correo contacto pagador'],
-            'rut_pagador' => ['rut pagador', 'rut comprador', 'rut contacto pagador', 'rut del pagador', 'rut del comprador'],
+            'rut_pagador' => ['rut pagador', 'rut comprador', 'rut contacto pagador', 'rut del pagador', 'rut del comprador', 'nro. documento pagador', 'documento pagador', 'nro documento pagador'],
+            'tipo_doc_pagador' => ['tipo doc pagador', 'tipo doc. pagador', 'tipo documento pagador', 'tipo de documento pagador', 'tipo doc del pagador', 'tipo de doc pagador'],
             'cuotas' => ['# cuotas', 'cuotas', 'numero cuotas', 'nro cuotas', 'nro. cuotas'],
             'tipo_documento' => ['tipo de documento', 'tipo documento', 'tipo doc', 'documento fiscal', 'document type'],
         ];
@@ -2179,6 +2191,28 @@ class ImportManualPaymentsService
     {
         $labels = ['B2' => 'Boleta', 'FF' => 'Factura', 'AC' => 'Anticipo', 'CR' => 'Contrato', 'CT' => 'Crédito Temporal'];
         return $labels[$code] ?? $code;
+    }
+
+    /**
+     * Resuelve el ID del tipo de documento del PAGADOR (RUT/PASAPORTE/DNI).
+     * Es el mismo campo que pide el formulario manual "Registrar Pago Offline".
+     * Default: RUT si no se especifica.
+     */
+    private function resolveBuyerDocumentTypeId(?string $tipo): ?int
+    {
+        static $cache = null;
+        if ($cache === null) {
+            $cache = \App\Models\Document::pluck('id', 'name')
+                ->mapWithKeys(fn($id, $name) => [strtoupper($name) => $id])
+                ->all();
+        }
+
+        $normalized = strtoupper(trim($tipo ?? ''));
+        if ($normalized === '' || !isset($cache[$normalized])) {
+            $normalized = 'RUT'; // default
+        }
+
+        return $cache[$normalized] ?? null;
     }
 
     /**
