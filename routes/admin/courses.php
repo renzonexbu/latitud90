@@ -23,8 +23,10 @@ Route::prefix('courses')->name('courses.')->group(function () {
     Route::get('/', [CourseController::class, 'index'])->name('index');
     Route::get('/create', [CourseController::class, 'create'])->name('create');
     Route::post('/', [CourseController::class, 'store'])->name('store');
+    Route::post('/participants/preview-import-new', [CourseController::class, 'previewParticipantsImportNew'])->name('participants.preview-import-new');
     Route::get('/{course}', [CourseController::class, 'show'])->name('show');
     Route::get('/{course}/edit', [CourseController::class, 'edit'])->name('edit');
+    Route::post('/{course}/participants/preview-import', [CourseController::class, 'previewParticipantsImport'])->name('participants.preview-import');
     Route::put('/{course}', [CourseController::class, 'update'])->name('update');
     Route::delete('/{course}', [CourseController::class, 'destroy'])->name('destroy');
 

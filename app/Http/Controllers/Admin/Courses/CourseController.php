@@ -150,6 +150,86 @@ class CourseController extends Controller
         ]);
     }
 
+    /**
+     * Generar preview de los cambios que produciría una importación de participantes
+     * sin escribir nada en la BD. Devuelve diffs por participante existente,
+     * lista de nuevos y errores.
+     */
+    public function previewParticipantsImport(Request $request, Course $course)
+    {
+        $request->validate([
+            'students_file' => 'nullable|file|mimes:xlsx,xls,csv',
+        ]);
+
+        try {
+            $file = $request->file('students_file');
+
+            // Si no se sube un archivo nuevo, intentar usar el archivo ya guardado del curso
+            if (!$file) {
+                if (empty($course->students_file_path)) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => 'No hay archivo de estudiantes asociado al curso ni se adjuntó uno nuevo.',
+                    ], 422);
+                }
+
+                $storedPath = storage_path('app/public/' . $course->students_file_path);
+                if (!file_exists($storedPath)) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => 'El archivo guardado del curso no se encuentra en el servidor.',
+                    ], 422);
+                }
+
+                // Construir un UploadedFile a partir del archivo en disco para reutilizar el flujo
+                $file = new \Illuminate\Http\UploadedFile(
+                    $storedPath,
+                    $course->students_file_name ?? basename($storedPath),
+                    null,
+                    null,
+                    true // test mode → no validar que sea uploaded via HTTP
+                );
+            }
+
+            $preview = $this->courseService->previewParticipantsImport($file, $course);
+            return response()->json([
+                'success' => true,
+                'preview' => $preview,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    /**
+     * Preview de importación de participantes para un curso nuevo (sin ID).
+     * Usado desde la pantalla Create — no hay course aún en BD,
+     * pero igual podemos detectar participantes nuevos vs ya existentes en otros cursos.
+     */
+    public function previewParticipantsImportNew(Request $request)
+    {
+        $request->validate([
+            'students_file' => 'required|file|mimes:xlsx,xls,csv',
+        ]);
+
+        try {
+            // Pasamos null como course; el servicio lo manejará como "curso nuevo"
+            $preview = $this->courseService->previewParticipantsImport($request->file('students_file'), null);
+            return response()->json([
+                'success' => true,
+                'preview' => $preview,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
     public function update(UpdateCourseRequest $request, Course $course)
     {
         try {

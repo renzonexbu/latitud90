@@ -465,6 +465,21 @@
                                                                 {{ errors.studentsFile }}
                                                             </span>
 
+                                                            <!-- Botón previsualizar cambios: aparece si hay archivo nuevo o uno ya guardado -->
+                                                            <button
+                                                                v-if="form.studentsFile || props.course.students_file_name"
+                                                                type="button"
+                                                                @click="previewImport"
+                                                                :disabled="isPreviewLoading"
+                                                                class="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-[#007e93] hover:bg-[#005f6f] disabled:opacity-50 text-white text-sm rounded-md transition-colors"
+                                                            >
+                                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                                                </svg>
+                                                                {{ isPreviewLoading ? 'Analizando archivo...' : (form.studentsFile ? 'Previsualizar cambios antes de aplicar' : 'Previsualizar archivo actual') }}
+                                                            </button>
+
                                                             <!-- Import Errors Details -->
                                                             <div v-if="importErrorDetails && importErrorDetails.errors && importErrorDetails.errors.length > 0" class="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
                                                                 <div class="flex items-start justify-between mb-3">
@@ -946,6 +961,111 @@
                         </div>
                     </div>
                 </Modal>
+
+                <!-- Modal: Previsualización de cambios en importación de participantes -->
+                <div v-if="showPreviewModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" @click.self="showPreviewModal = false">
+                    <div class="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[85vh] overflow-hidden flex flex-col">
+                        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                            <h3 class="text-lg font-semibold text-gray-900">Previsualización de cambios</h3>
+                            <button @click="showPreviewModal = false" class="text-gray-400 hover:text-gray-600">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div class="px-6 py-4 border-b border-gray-200 grid grid-cols-4 gap-4">
+                            <div class="text-center">
+                                <p class="text-xs text-gray-500 uppercase">Total filas</p>
+                                <p class="text-2xl font-bold text-gray-900">{{ previewData?.summary?.total_rows ?? 0 }}</p>
+                            </div>
+                            <div class="text-center">
+                                <p class="text-xs text-gray-500 uppercase">Con cambios</p>
+                                <p class="text-2xl font-bold text-amber-600">{{ previewData?.summary?.with_changes ?? 0 }}</p>
+                            </div>
+                            <div class="text-center">
+                                <p class="text-xs text-gray-500 uppercase">Nuevos</p>
+                                <p class="text-2xl font-bold text-green-600">{{ previewData?.summary?.new ?? 0 }}</p>
+                            </div>
+                            <div class="text-center">
+                                <p class="text-xs text-gray-500 uppercase">Errores</p>
+                                <p class="text-2xl font-bold text-red-600">{{ previewData?.summary?.errors ?? 0 }}</p>
+                            </div>
+                        </div>
+
+                        <div class="flex-1 overflow-y-auto px-6 py-4 space-y-6">
+                            <!-- Cambios -->
+                            <div v-if="previewData?.changes?.length">
+                                <h4 class="font-semibold text-gray-800 mb-2">Participantes con cambios</h4>
+                                <div class="space-y-3">
+                                    <div v-for="item in previewData.changes" :key="item.row" class="border border-gray-200 rounded-lg overflow-hidden">
+                                        <div class="bg-gray-50 px-4 py-2 flex items-center gap-3">
+                                            <span class="text-xs text-gray-500">Fila {{ item.row }}</span>
+                                            <span class="text-sm font-medium text-gray-900">{{ item.name }}</span>
+                                            <span class="text-xs text-gray-500 ml-auto">RUT: {{ item.rut }}</span>
+                                        </div>
+                                        <table class="w-full text-sm">
+                                            <thead class="bg-white">
+                                                <tr class="border-b border-gray-200">
+                                                    <th class="px-4 py-2 text-left font-medium text-gray-600">Campo</th>
+                                                    <th class="px-4 py-2 text-left font-medium text-gray-600">Actual</th>
+                                                    <th class="px-4 py-2 text-left font-medium text-gray-600">Nuevo</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr v-for="(d, i) in item.diffs" :key="i" class="border-b last:border-b-0 border-gray-100">
+                                                    <td class="px-4 py-2 text-gray-700">{{ d.field }}</td>
+                                                    <td class="px-4 py-2 text-red-600 line-through">{{ d.current }}</td>
+                                                    <td class="px-4 py-2 text-green-700 font-medium">{{ d.new }}</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Nuevos -->
+                            <div v-if="previewData?.new_participants?.length">
+                                <h4 class="font-semibold text-gray-800 mb-2">Participantes nuevos</h4>
+                                <table class="w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="px-4 py-2 text-left font-medium text-gray-600">Fila</th>
+                                            <th class="px-4 py-2 text-left font-medium text-gray-600">RUT</th>
+                                            <th class="px-4 py-2 text-left font-medium text-gray-600">Nombre</th>
+                                            <th class="px-4 py-2 text-left font-medium text-gray-600">Fecha nacimiento</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="np in previewData.new_participants" :key="np.row" class="border-t border-gray-100">
+                                            <td class="px-4 py-2">{{ np.row }}</td>
+                                            <td class="px-4 py-2 font-mono text-xs">{{ np.rut }}</td>
+                                            <td class="px-4 py-2">{{ np.name }}</td>
+                                            <td class="px-4 py-2">{{ np.birth_date || '—' }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Errores -->
+                            <div v-if="previewData?.errors?.length">
+                                <h4 class="font-semibold text-red-700 mb-2">Errores</h4>
+                                <ul class="list-disc list-inside text-sm text-red-700">
+                                    <li v-for="(err, i) in previewData.errors" :key="i">Fila {{ err.row }}: {{ err.error }}</li>
+                                </ul>
+                            </div>
+
+                            <div v-if="!previewData?.changes?.length && !previewData?.new_participants?.length && !previewData?.errors?.length" class="text-center py-10 text-gray-500">
+                                No hay cambios detectados. El archivo está alineado con la BD actual.
+                            </div>
+                        </div>
+
+                        <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-2">
+                            <button @click="showPreviewModal = false" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 rounded-md text-sm">Cerrar</button>
+                            <p class="text-xs text-gray-500 self-center ml-2">Para aplicar los cambios, presiona "Guardar" en el formulario.</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </AdminLayout>
@@ -954,6 +1074,7 @@
 <script setup>
 import { Head, useForm, Link, router, usePage } from '@inertiajs/vue3';
 import { ref, watch, computed, nextTick } from 'vue';
+import axios from 'axios';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import SearchableSelect from '@/Components/Ecommerce/SearchableSelect.vue';
 import ParticipantsManagement from '@/Components/Courses/ParticipantsManagement.vue';
@@ -1485,6 +1606,40 @@ const handlePriceInput = (event) => {
     const cleanValue = value.replace(/\D/g, '');
     // Update form with the clean number
     form.value.trip_price = cleanValue ? parseInt(cleanValue) : '';
+};
+
+// Preview de importación de participantes (dry-run)
+const showPreviewModal = ref(false);
+const previewData = ref(null);
+const isPreviewLoading = ref(false);
+
+const previewImport = async () => {
+    // Permite previsualizar tanto archivo nuevo como el ya guardado en el servidor
+    if (!form.studentsFile && !props.course.students_file_name) return;
+
+    isPreviewLoading.value = true;
+    previewData.value = null;
+    try {
+        const fd = new FormData();
+        if (form.studentsFile) {
+            fd.append('students_file', form.studentsFile);
+        }
+        // Si no hay archivo nuevo, el backend usa el archivo guardado del curso
+        const response = await axios.post(
+            route('admin.courses.participants.preview-import', { course: props.course.id }),
+            fd,
+            { headers: { 'Content-Type': 'multipart/form-data' } }
+        );
+        if (response.data.success) {
+            previewData.value = response.data.preview;
+            showPreviewModal.value = true;
+        }
+    } catch (error) {
+        const message = error.response?.data?.error || 'Error al generar la previsualización';
+        alert(message);
+    } finally {
+        isPreviewLoading.value = false;
+    }
 };
 
 // Handle file upload
