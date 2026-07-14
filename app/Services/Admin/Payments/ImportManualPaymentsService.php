@@ -258,7 +258,11 @@ class ImportManualPaymentsService
 
         // 6. Obtener payment option
         $tipoPago = $rawData['tipo_pago'] ?? $rowData['tipo_pago'] ?? $rowData['payment_type'] ?? 'TE';
-        $paymentOptionCode = $this->mapPresentialPaymentTypeToOption($tipoPago);
+        // Si la columna "Aporte" viene marcada, el pago se registra como aporte
+        // sin importar el método de pago del Excel (que igual queda en las notas).
+        $paymentOptionCode = $this->isAporteFlag(array_merge($rowData, $rawData ?? []))
+            ? 'presential_aporte'
+            : $this->mapPresentialPaymentTypeToOption($tipoPago);
         $paymentOption = $paymentOptions->get($paymentOptionCode);
 
         // 7. Crear Order
@@ -352,8 +356,8 @@ class ImportManualPaymentsService
         // 10. Actualizar estado de la orden
         $order->refreshStatus();
 
-        // 11. Manejar APORTE si aplica
-        $isAporte = strtoupper(trim($tipoPago)) === 'AP' || ($rowData['is_aporte'] ?? false);
+        // 11. Manejar APORTE si aplica (columna "Aporte" SI, o tipo_pago=AP legacy)
+        $isAporte = $this->isAporteFlag(array_merge($rowData, $rawData ?? [])) || ($rowData['is_aporte'] ?? false);
         if ($isAporte) {
             $this->handleAportePayment($participantProgram, $paymentAmount);
         }
@@ -1100,7 +1104,7 @@ class ImportManualPaymentsService
             $paymentAmount = $this->parseAmount($rowData['monto']);
             $paymentDate = $this->parseDate($rowData['fecha_pago']);
             $paymentType = $this->mapPaymentType($rowData['tipo_pago']);
-            $isAporte = strtoupper(trim($rowData['tipo_pago'])) === 'AP';
+            $isAporte = $this->isAporteFlag($rowData);
 
             // 7. Calculate new balance
             $newPaidAmount = $paidAmount + $paymentAmount;
@@ -1258,7 +1262,10 @@ class ImportManualPaymentsService
 
             // 8. Get payment gateway and option
             $paymentGateway = PaymentGateway::where('code', 'presencial')->first();
-            $paymentOptionCode = $this->mapPresentialPaymentTypeToOption($rowData['tipo_pago']);
+            // Columna "Aporte" (SI) tiene prioridad sobre "Forma Pago".
+            $paymentOptionCode = $this->isAporteFlag($rowData)
+                ? 'presential_aporte'
+                : $this->mapPresentialPaymentTypeToOption($rowData['tipo_pago']);
             $paymentOption = PaymentOption::where('code', $paymentOptionCode)->first();
 
             // 9. Find or create the order
@@ -1348,7 +1355,7 @@ class ImportManualPaymentsService
             ]);
 
             // 12. Handle APORTE (AP) - Update contribution field
-            $isAporte = strtoupper(trim($rowData['tipo_pago'])) === 'AP';
+            $isAporte = $this->isAporteFlag($rowData);
             if ($isAporte) {
                 $this->handleAportePayment($participantProgram, $paymentAmount);
             }
@@ -1494,7 +1501,10 @@ class ImportManualPaymentsService
             }
 
             // 6. Obtener payment option
-            $paymentOptionCode = $this->mapPresentialPaymentTypeToOption($rowData['tipo_pago'] ?? 'TE');
+            // Columna "Aporte" (SI) tiene prioridad sobre "Forma Pago".
+            $paymentOptionCode = $this->isAporteFlag($rowData)
+                ? 'presential_aporte'
+                : $this->mapPresentialPaymentTypeToOption($rowData['tipo_pago'] ?? 'TE');
             $paymentOption = $paymentOptions->get($paymentOptionCode);
 
             // 7. Crear Order (igual que StorePaymentService - siempre nueva)
@@ -2005,6 +2015,7 @@ class ImportManualPaymentsService
             'email_contacto_pagador' => ['email contacto pagador', 'email pagador', 'correo pagador', 'correo contacto pagador'],
             'rut_pagador' => ['rut pagador', 'rut comprador', 'rut contacto pagador', 'rut del pagador', 'rut del comprador', 'nro. documento pagador', 'documento pagador', 'nro documento pagador'],
             'tipo_doc_pagador' => ['tipo doc pagador', 'tipo doc. pagador', 'tipo documento pagador', 'tipo de documento pagador', 'tipo doc del pagador', 'tipo de doc pagador'],
+            'aporte' => ['aporte', 'es aporte', 'es_aporte', 'aporte/abono', 'concepto', 'concepto aporte'],
             'cuotas' => ['# cuotas', 'cuotas', 'numero cuotas', 'nro cuotas', 'nro. cuotas'],
             'tipo_documento' => ['tipo de documento', 'tipo documento', 'tipo doc', 'documento fiscal', 'document type'],
         ];
@@ -2162,6 +2173,21 @@ class ImportManualPaymentsService
         ];
 
         return $mapping[$type] ?? 'presential_pos_office';
+    }
+
+    /**
+     * Detecta si una fila del Excel debe registrarse como Aporte, respetando
+     * ambos criterios (legacy y nuevo):
+     *   - Legacy: tipo_pago = 'AP' (soporte para plantillas antiguas)
+     *   - Nuevo: columna "Aporte" con valor SI/YES/TRUE/1 (recomendado)
+     * Devuelve true si aplica marcar el pago como aporte.
+     */
+    private function isAporteFlag(array $rowData): bool
+    {
+        $legacyAP = strtoupper(trim($rowData['tipo_pago'] ?? '')) === 'AP';
+        $columnValue = strtoupper(trim($rowData['aporte'] ?? ''));
+        $flagged = in_array($columnValue, ['SI', 'SÍ', 'YES', 'Y', 'TRUE', '1'], true);
+        return $legacyAP || $flagged;
     }
 
     /**
