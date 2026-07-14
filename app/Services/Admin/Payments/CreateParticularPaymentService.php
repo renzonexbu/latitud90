@@ -50,8 +50,13 @@ class CreateParticularPaymentService
             // Para pagos presenciales, usar gateway presencial y mapear la opción según el tipo
             $paymentGateway = PaymentGateway::where('code', 'presencial')->firstOrFail();
 
-            // Mapear el tipo de pago presencial a la opción correspondiente
-            $paymentOptionCode = $this->mapPresentialPaymentTypeToOption($data['presential_payment_type'] ?? 'BX');
+            // Mapear el tipo de pago presencial a la opción correspondiente.
+            // Si el toggle "Aporte" del formulario está activado, se fuerza
+            // payment_option = presential_aporte independientemente del método.
+            $isAporteFlag = filter_var($data['is_aporte'] ?? false, FILTER_VALIDATE_BOOLEAN);
+            $paymentOptionCode = $isAporteFlag
+                ? 'presential_aporte'
+                : $this->mapPresentialPaymentTypeToOption($data['presential_payment_type'] ?? 'BX');
             $paymentOption = PaymentOption::where('code', $paymentOptionCode)->firstOrFail();
 
             // Log temporal para diagnosticar
@@ -99,9 +104,10 @@ class CreateParticularPaymentService
                 $data['amount']
             );
 
-            // Manejar APORTE (AP) - Actualizar campo contribution en participant_program
+            // Manejar APORTE - Actualizar campo contribution en participant_program.
+            // Se dispara cuando el toggle "Aporte" está activo o (compat) el método legacy AP.
             $presentialPaymentType = strtoupper(trim($data['presential_payment_type'] ?? ''));
-            if ($presentialPaymentType === 'AP') {
+            if ($isAporteFlag || $presentialPaymentType === 'AP') {
                 $this->handleAportePayment($participant->id, $programCourse->id, $data['amount']);
             }
 

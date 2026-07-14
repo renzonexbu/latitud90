@@ -102,7 +102,10 @@ class PaymentController extends Controller
             'participant_id' => 'required|exists:participants,id',
             'amount' => 'required|numeric|min:0',
             'status' => 'required|in:pending,completed,failed,authorized',
+            // AP ya no es un valor válido acá — se maneja con el flag is_aporte.
+            // Se acepta durante un tiempo por compatibilidad con formularios en caché.
             'presential_payment_type' => 'required|in:BX,TE,CH,DP,AP,CT',
+            'is_aporte' => 'nullable|boolean',
             'payment_code' => 'required|string|max:255',
             'authorization_code' => 'nullable|string',
             'notes' => 'nullable|string',

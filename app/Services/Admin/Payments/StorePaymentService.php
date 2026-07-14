@@ -39,8 +39,12 @@ class StorePaymentService
             // Para pagos presenciales, usar gateway presencial y option según el tipo seleccionado
             $paymentGateway = PaymentGateway::where('code', 'presencial')->firstOrFail();
             
-            // Mapear el tipo de pago presencial a la opción correspondiente
-            $paymentOptionCode = $this->mapPresentialPaymentTypeToOption($request->presential_payment_type);
+            // Mapear el tipo de pago presencial a la opción correspondiente.
+            // El flag is_aporte del toggle "Abono/Aporte" tiene prioridad: si es true,
+            // el pago se registra como aporte sin importar el método (BX/TE/DP/etc).
+            $paymentOptionCode = $request->boolean('is_aporte')
+                ? 'presential_aporte'
+                : $this->mapPresentialPaymentTypeToOption($request->presential_payment_type);
             $paymentOption = PaymentOption::where('code', $paymentOptionCode)->firstOrFail();
             
 

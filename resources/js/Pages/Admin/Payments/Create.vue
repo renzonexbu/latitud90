@@ -590,6 +590,49 @@
                                         >
                                     </div>
 
+                                    <!-- Concepto: Abono / Aporte -->
+                                    <div class="mb-4 p-4 bg-orange-50 rounded-lg border border-orange-200">
+                                        <label class="block text-sm font-semibold text-gray-800 mb-3">
+                                            Concepto contable *
+                                        </label>
+                                        <div class="flex gap-4">
+                                            <label
+                                                class="flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer transition-all duration-200"
+                                                :class="{
+                                                    'border-[#e74c3c] bg-red-50 font-semibold': form.payment_concept === 'abono',
+                                                    'border-gray-300 hover:border-gray-400': form.payment_concept !== 'abono'
+                                                }"
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    value="abono"
+                                                    v-model="form.payment_concept"
+                                                    class="h-4 w-4 text-[#e74c3c] border-gray-300 focus:ring-[#e74c3c]"
+                                                />
+                                                <span class="text-sm">Abono</span>
+                                            </label>
+                                            <label
+                                                class="flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer transition-all duration-200"
+                                                :class="{
+                                                    'border-[#e74c3c] bg-red-50 font-semibold': form.payment_concept === 'aporte',
+                                                    'border-gray-300 hover:border-gray-400': form.payment_concept !== 'aporte'
+                                                }"
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    value="aporte"
+                                                    v-model="form.payment_concept"
+                                                    class="h-4 w-4 text-[#e74c3c] border-gray-300 focus:ring-[#e74c3c]"
+                                                />
+                                                <span class="text-sm">Aporte</span>
+                                            </label>
+                                        </div>
+                                        <p class="text-xs text-gray-600 mt-2">
+                                            Aporte: pago que se contabiliza como beca/subvención del participante,
+                                            independiente del método (transferencia, depósito, etc).
+                                        </p>
+                                    </div>
+
                                     <!-- Tipo de Pago Offline -->
                                     <div class="mb-4">
                                         <label
@@ -968,12 +1011,22 @@ const form = useForm({
     amount: "",
     presential_payment_type: "", // Nuevo campo para tipo de pago presencial
     fiscal_document_type: "", // Tipo de documento fiscal (Boleta/Factura)
+    // Concepto contable del pago: 'abono' (default) o 'aporte'.
+    // Cuando es 'aporte', StorePaymentService fuerza payment_option = presential_aporte
+    // sin importar el método (BX/TE/DP/etc).
+    payment_concept: "abono",
+    is_aporte: false,
     transaction_date: new Date()
         .toLocaleString("sv-SE", { timeZone: "America/Santiago" })
         .slice(0, 16),
     authorization_code: "",
     installments: 1,
     notes: "",
+});
+
+// Sincroniza is_aporte con payment_concept (radio group).
+watch(() => form.payment_concept, (val) => {
+    form.is_aporte = val === 'aporte';
 });
 
 // Limpiar tipo de documento fiscal cuando se selecciona CT (Crédito Temporal)

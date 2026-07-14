@@ -92,7 +92,10 @@ class CreateParticularPaymentController extends Controller
             'authorization_code' => 'required|string|max:255',
             'installments' => 'required|integer|min:1|max:36',
             'notes' => 'nullable|string',
+            // AP se mantiene en la validación por compat con formularios en caché,
+            // pero ya no aparece en el desplegable — ahora es el toggle is_aporte.
             'presential_payment_type' => 'required|in:TC,KP,PAT,TE,VP,VPI,DP,WP,AP,CT',
+            'is_aporte' => 'nullable|boolean',
 
             // Datos del comprador
             'buyer_first_name' => 'required|string|max:255',
@@ -118,6 +121,7 @@ class CreateParticularPaymentController extends Controller
                 'installments' => $request->installments,
                 'notes' => $request->notes,
                 'presential_payment_type' => $request->presential_payment_type,
+                'is_aporte' => $request->boolean('is_aporte'),
 
                 // Datos del comprador
                 'buyer_first_name' => $request->buyer_first_name,
