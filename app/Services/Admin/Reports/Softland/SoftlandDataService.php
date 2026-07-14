@@ -510,9 +510,10 @@ class SoftlandDataService
         $payerName = $orderDetail ? ucwords(strtolower($orderDetail->name ?? '')) : '';
         $paymentMethod = $this->getPaymentMethodCode($payment);
         $transactionId = $this->getTransactionId($payment);
+        $accountCode = $this->getAccountCodeByPaymentMethod($paymentMethod);
 
         return $this->buildMovementRow([
-            'codigo_plan_cuenta' => '1-1-02-014',
+            'codigo_plan_cuenta' => $accountCode,
             'debe' => (int) abs($payment->amount),
             'haber' => 0,
             'descripcion_movimiento' => $payerName,
@@ -695,20 +696,41 @@ class SoftlandDataService
     }
 
     /**
-     * Obtiene el método de pago en 2 letras para Softland
+     * Obtiene el método de pago en 2 letras para Softland.
+     * PAT y VPI se muestran como VP (así lo pide contabilidad).
      */
     private function getPaymentMethodCode($payment): string
     {
         if ($payment->paymentOption) {
             $code = $payment->paymentOption->report_code ?? 'VP';
-            // PAT (suscripciones) debe ser VP en Softland
-            if ($code === 'PAT') {
+            // PAT (suscripciones) y VPI (VirtualPos Internacional) → VP
+            if ($code === 'PAT' || $code === 'VPI') {
                 return 'VP';
             }
             // Softland solo acepta 2 letras
             return substr($code, 0, 2);
         }
         return 'VP';
+    }
+
+    /**
+     * Devuelve el código de Plan de Cuentas Softland según el método de pago.
+     * Tabla oficial provista por Carmen (contabilidad):
+     *   - AC (anticipo)                  → 2-1-04-051
+     *   - TC (tarjeta crédito presencial) → 1-1-02-009
+     *   - WP/KP/VP (incluye PAT/VPI)     → 1-1-02-014
+     *   - TE/DP (transferencia/depósito) → 1-1-01-039
+     * Cualquier código desconocido cae al 1-1-02-014 (default histórico).
+     */
+    private function getAccountCodeByPaymentMethod(string $paymentMethod): string
+    {
+        return match (strtoupper($paymentMethod)) {
+            'AC'                            => '2-1-04-051',
+            'TC'                            => '1-1-02-009',
+            'TE', 'DP'                      => '1-1-01-039',
+            'WP', 'KP', 'VP', 'PAT', 'VPI'  => '1-1-02-014',
+            default                         => '1-1-02-014',
+        };
     }
 
     /**
@@ -1071,7 +1093,7 @@ class SoftlandDataService
 
         return [
             // Información básica
-            'codigo_plan_cuenta' => '1-1-02-014', // Cuenta específica para AC
+            'codigo_plan_cuenta' => '2-1-04-051', // Cuenta específica para AC (Anticipo) según tabla contable
             'debe' => (int) abs($payment->amount), // Mismo monto que haber sin decimales
             'haber' => 0, // Vacío para DEBE
             'descripcion_movimiento' => $payerName, // Solo el nombre del pagador/apoderado
@@ -1451,11 +1473,22 @@ class SoftlandDataService
         $documentType = $installment['document_type'] ?? 'B2';
         $payment = $installment['payment'] ?? null;
 
-        // Para B2: usar bsale_number como nro documento
-        $boletaNumber = $payment->bsale_number ?? ($installment['virtualpos_charge_id'] ?? ('INST-' . $installment['installment_id']));
+        // Nro. documento del movimiento:
+        //  - B2: bsale_number (número de boleta)
+        //  - AC: authorization_code del pago VirtualPos (lo pide contabilidad).
+        //    Antes se usaba INST-{id} o virtualpos_charge_id, quedaba ilegible.
+        if ($documentType === 'AC') {
+            $boletaNumber = $payment->authorization_code
+                ?? $installment['virtualpos_charge_id']
+                ?? ('INST-' . $installment['installment_id']);
+        } else {
+            $boletaNumber = $payment->bsale_number
+                ?? ($installment['virtualpos_charge_id'] ?? ('INST-' . $installment['installment_id']));
+        }
 
-        // Si el Payment tiene document_type='AC', usar cuenta 014, sino 010
-        $accountCode = ($documentType === 'AC') ? '1-1-02-014' : '1-1-02-010';
+        // Si el Payment tiene document_type='AC', usar cuenta 2-1-04-051 según tabla contable;
+        // para B2 y demás, cuenta 1-1-02-010.
+        $accountCode = ($documentType === 'AC') ? '2-1-04-051' : '1-1-02-010';
 
         // Nombre del pagador (buyer_data), fallback al participante
         $buyerName = $this->getBuyerNameFromData($buyerData, $participant);
@@ -1771,19 +1804,18 @@ class SoftlandDataService
             $payerAuxiliarCode = $this->removeRutDV($buyerData['document_number']);
         }
 
-        // Método de pago: suscripciones siempre VP
+        // Método de pago: suscripciones siempre VP (PAT y VPI mapean a VP)
         $paymentMethod = 'VP';
         if ($payment && $payment->paymentOption) {
             $code = $payment->paymentOption->report_code ?? 'VP';
-            // PAT (suscripciones) debe ser VP
-            $paymentMethod = ($code === 'PAT') ? 'VP' : substr($code, 0, 2);
+            $paymentMethod = ($code === 'PAT' || $code === 'VPI') ? 'VP' : substr($code, 0, 2);
         }
 
         // ID transacción: primeros 8 dígitos del uuid de gateway_response
         $transactionId = $this->getInstallmentTransactionId($installment);
 
         return $this->buildMovementRow([
-            'codigo_plan_cuenta' => '1-1-02-014',
+            'codigo_plan_cuenta' => $this->getAccountCodeByPaymentMethod($paymentMethod),
             'debe' => (int) abs($installment['amount']),
             'haber' => 0,
             'descripcion_movimiento' => $payerName,
@@ -1819,11 +1851,11 @@ class SoftlandDataService
             $payerAuxiliarCode = $this->removeRutDV($participant->document_number);
         }
 
-        // Método de pago: suscripciones siempre VP
+        // Método de pago: suscripciones siempre VP (PAT y VPI mapean a VP)
         $paymentMethod = 'VP';
         if ($payment && $payment->paymentOption) {
             $code = $payment->paymentOption->report_code ?? 'VP';
-            $paymentMethod = ($code === 'PAT') ? 'VP' : substr($code, 0, 2);
+            $paymentMethod = ($code === 'PAT' || $code === 'VPI') ? 'VP' : substr($code, 0, 2);
         }
 
         $transactionId = $this->getInstallmentTransactionId($installment);
