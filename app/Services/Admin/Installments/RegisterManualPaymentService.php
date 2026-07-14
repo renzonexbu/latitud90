@@ -242,6 +242,9 @@ class RegisterManualPaymentService
      */
     public static function getPaymentSourceOptions(): array
     {
+        // Aporte (AP) NO va acá: es un concepto contable, no un método de pago.
+        // Se maneja con el toggle "Abono/Aporte" del formulario que envía is_aporte
+        // al backend, y CreateParticularPaymentService fuerza presential_aporte.
         return [
             ['value' => 'manual_card_office', 'label' => 'POS Oficina (TC)', 'report_code' => 'TC'],
             ['value' => 'manual_transfer', 'label' => 'Link KP (KP)', 'report_code' => 'KP'],
@@ -251,7 +254,6 @@ class RegisterManualPaymentService
             ['value' => 'manual_international', 'label' => 'Link Internacional (VPI)', 'report_code' => 'VPI'],
             ['value' => 'manual_deposit', 'label' => 'Depósito (DP)', 'report_code' => 'DP'],
             ['value' => 'manual_webpay', 'label' => 'Webpay (WP)', 'report_code' => 'WP'],
-            ['value' => 'manual_aporte', 'label' => 'Aporte (AP)', 'report_code' => 'AP'],
             ['value' => 'manual_credit_temp', 'label' => 'Crédito Temporal (CT)', 'report_code' => 'CT'],
         ];
     }
