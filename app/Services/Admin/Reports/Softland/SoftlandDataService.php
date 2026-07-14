@@ -1220,7 +1220,7 @@ class SoftlandDataService
 
         return [
             // Información básica
-            'codigo_plan_cuenta' => '2-1-04-060', // Cuenta de anticipos según especificación
+            'codigo_plan_cuenta' => '2-1-04-051', // Cuenta oficial de Anticipos (AC) — Carmen 2026-07
             'debe' => 0, // Vacío para HABER
             'haber' => (int) abs($payment->amount), // Siempre usar valor absoluto sin decimales
             'descripcion_movimiento' => $this->formatACCreditDescription($payment, $participant, $program),
@@ -1343,22 +1343,14 @@ class SoftlandDataService
 
     /**
      * Formatea la descripción del movimiento AC (HABER)
-     * Formato: enrollment_code/payer_name/document_type
+     * Formato: programCode/payer_name/document_type
+     * Antes se usaba enrollment_code (RUT-Nro. Negocio), pero contabilidad
+     * pidió sacar el RUT y empezar desde el número de programa (Carmen 2026-07).
      */
     private function formatACCreditDescription(Payment $payment, $participant, $program): string
     {
-        // Obtener enrollment_code desde participant_program
-        // Buscar usando participant_id y program_id del order
-        $enrollmentCode = '';
-        if ($payment->order && $payment->order->participant_id && $payment->order->program_id) {
-            $participantProgram = \App\Models\ParticipantProgram::where('participant_id', $payment->order->participant_id)
-                ->where('program_id', $payment->order->program_id)
-                ->first();
-
-            if ($participantProgram && $participantProgram->enrollment_code) {
-                $enrollmentCode = $participantProgram->enrollment_code;
-            }
-        }
+        // Código del programa (Nro. Negocio). El $program que llega es un ProgramCourse.
+        $programCode = $program?->code ?? 'SIN-CODIGO';
 
         // Obtener el nombre del pagador/apoderado desde OrderDetail
         $payerName = '';
@@ -1375,7 +1367,7 @@ class SoftlandDataService
             $documentType = 'AC'; // Anticipo por defecto
         }
 
-        return "{$enrollmentCode}/{$payerName}/{$documentType}";
+        return "{$programCode}/{$payerName}/{$documentType}";
     }
 
 
@@ -1633,7 +1625,7 @@ class SoftlandDataService
         $isVirtualPos = $payment && $payment->paymentGateway && $payment->paymentGateway->code === 'virtualpos';
 
         // Si es AC, va a cuenta 060, sino a 021
-        $accountCode = ($documentType === 'AC') ? '2-1-04-060' : '3-1-01-021';
+        $accountCode = ($documentType === 'AC') ? '2-1-04-051' : '3-1-01-021';
 
         // Si es VirtualPos, tipo de documento es VP
         $displayDocumentType = $isVirtualPos ? 'VP' : $documentType;
@@ -1643,17 +1635,8 @@ class SoftlandDataService
         if ($documentType === 'AC') {
             // Para AC (cuenta 060): enrollment_code/payer_name/VP
             // Obtener enrollment_code
-            $enrollmentCode = '';
-            $participant = $installment['participant'] ?? null;
-            if ($participant && $payment) {
-                // Buscar ParticipantProgram para obtener enrollment_code
-                $participantProgram = \App\Models\ParticipantProgram::where('participant_id', $participant->id)
-                    ->where('program_id', $programCourse?->program_id)
-                    ->first();
-                $enrollmentCode = $participantProgram?->enrollment_code ?? '';
-            }
-
             // Obtener nombre del pagador
+            $participant = $installment['participant'] ?? null;
             $buyerData = $installment['buyer_data'] ?? [];
             $payerName = '';
             if (!empty($buyerData['first_name']) && !empty($buyerData['first_last_name'])) {
@@ -1664,7 +1647,9 @@ class SoftlandDataService
                 $payerName = $participant->full_name ?? '';
             }
 
-            $description = "{$enrollmentCode}/{$payerName}/{$displayDocumentType}";
+            // Glosa AC: {programCode}/{payerName}/{docType} — sin RUT (Carmen 2026-07).
+            // Antes empezaba con enrollment_code (RUT-Nro. Negocio), ahora solo el programa.
+            $description = "{$programCode}/{$payerName}/{$displayDocumentType}";
         } else {
             // Para B2 (cuenta 021): código programa + tipo doc emitido (sin N, sin VP)
             $boletaNumber = $payment->bsale_number ?? ($installment['virtualpos_charge_id'] ?? ('INST-' . $installment['installment_id']));
