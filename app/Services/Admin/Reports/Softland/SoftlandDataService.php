@@ -123,12 +123,12 @@ class SoftlandDataService
         Log::info('============================================');
 
         $movements014 = collect();  // 1-1-02-014 (cargo pagador DEBE - pasarela)
-        $movements034 = collect();  // 1-1-01-034 (cargo pagador DEBE - banco: TE, DP)
+        $movements034 = collect();  // 1-1-01-039 (cargo pagador DEBE - banco: TE, DP)
         $movements009 = collect();  // 1-1-02-009 (cargo pagador DEBE - oficina: TC, WP, VP)
         $movements010 = collect();  // 1-1-02-010 (abono boleta HABER)
         $movementsOther = collect(); // AC, reembolsos, etc.
 
-        // Códigos presenciales que van a cuenta bancaria (1-1-01-034)
+        // Códigos presenciales que van a cuenta bancaria (1-1-01-039)
         $bankCodes = ['presential_bank_transfer', 'presential_deposit'];
         // Códigos presenciales que van a cuenta oficina (1-1-02-009)
         $officeCodes = ['presential_pos_office', 'presential_webpay', 'presential_debit_credit'];
@@ -162,8 +162,8 @@ class SoftlandDataService
                     $optionCode = $payment->paymentOption->code ?? '';
 
                     if (in_array($optionCode, $bankCodes)) {
-                        // Presencial banco: cuenta 1-1-01-034
-                        $movements034->push($this->createPresentialDebitMovement($payment, '1-1-01-034'));
+                        // Presencial banco: cuenta 1-1-01-039
+                        $movements034->push($this->createPresentialDebitMovement($payment, '1-1-01-039'));
                         $movements010->push($this->createPaymentCreditMovement($payment));
                     } elseif (in_array($optionCode, $officeCodes)) {
                         // Presencial oficina: cuenta 1-1-02-009
@@ -472,28 +472,40 @@ class SoftlandDataService
     }
 
     /**
-     * Comprobante 2 - Cargo pagador presencial (DEBE) - Cuenta variable (034 o 009)
-     * Nro documento: código de autorización del pago offline
+     * Comprobante 2 - Cargo pagador presencial (DEBE) - Cuenta variable (039 o 009)
+     *
+     * Regla banco (TE/DP → 1-1-01-039) según Carmen 2026-07-15:
+     *   - codigo_auxiliar: vacío
+     *   - nro_documento: fecha en formato DDMMYY (6 dígitos), sin auth code
+     *   - tipo/nro doc referencia: vacíos (no aplican para banco)
+     * Oficina (1-1-02-009): mantiene RUT pagador como auxiliar y auth_code
+     * como nro documento.
      */
     private function createPresentialDebitMovement(Payment $payment, string $accountCode): array
     {
         $orderDetail = $payment->orderDetail ?? $payment->order->orderDetails->first();
         $payerName = $orderDetail ? ucwords(strtolower($orderDetail->name ?? '')) : '';
         $paymentMethod = $this->getPaymentMethodCode($payment);
-        $authCode = $payment->authorization_code ?? (string) $payment->id;
+        $isBank = $accountCode === '1-1-01-039';
+        $paymentDate = $payment->accounting_date ?? $payment->transaction_date;
+
+        $codigoAuxiliar = $isBank ? '' : $this->formatPayerAuxiliaryCode($payment);
+        $nroDocumento = $isBank
+            ? Carbon::parse($paymentDate)->format('dmy')
+            : ($payment->authorization_code ?? (string) $payment->id);
 
         return $this->buildMovementRow([
             'codigo_plan_cuenta' => $accountCode,
             'debe' => (int) abs($payment->amount),
             'haber' => 0,
             'descripcion_movimiento' => $payerName,
-            'codigo_auxiliar' => $this->formatPayerAuxiliaryCode($payment),
+            'codigo_auxiliar' => $codigoAuxiliar,
             'tipo_documento' => $paymentMethod,
-            'nro_documento' => $authCode,
-            'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->accounting_date ?? $payment->transaction_date),
-            'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->accounting_date ?? $payment->transaction_date),
-            'tipo_docto_referencia' => $paymentMethod,
-            'nro_docto_referencia' => $authCode,
+            'nro_documento' => $nroDocumento,
+            'fecha_emision_docto' => $this->formatDateDDMMYYYY($paymentDate),
+            'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($paymentDate),
+            'tipo_docto_referencia' => $isBank ? '' : $paymentMethod,
+            'nro_docto_referencia' => $isBank ? '' : $nroDocumento,
         ]);
     }
 
