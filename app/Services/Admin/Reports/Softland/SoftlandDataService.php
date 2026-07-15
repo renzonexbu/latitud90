@@ -1605,13 +1605,12 @@ class SoftlandDataService
         $documentType = $installment['document_type'] ?? 'B2';
         $documentNumber = $authorizationCode ?? ($installment['virtualpos_charge_id'] ?? ('INST-' . $installment['installment_id']));
 
-        // Obtener código del programa
-        $programCode = 'SIN-CODIGO';
-        if ($programCourse) {
-            // Obtener el program parent para el código
-            $program = \App\Models\Program::find($programCourse->program_id);
-            $programCode = $program?->code ?? 'SIN-CODIGO';
-        }
+        // Código del programa: usar directamente ProgramCourse->code (V0142, V0158, etc).
+        // Antes se buscaba Program::find($programCourse->program_id) para leer el code del
+        // padre, pero ese Program a menudo no tiene 'code' y la glosa salía como
+        // "SIN-CODIGO/…" en cuotas PAT (Carmen 2026-07-15). El código real del programa
+        // está en el propio ProgramCourse.
+        $programCode = $programCourse?->code ?? 'SIN-CODIGO';
 
         // Determinar cuenta según el document_type del Payment
         $payment = $installment['payment'] ?? null;
