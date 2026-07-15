@@ -1117,11 +1117,11 @@ class SoftlandDataService
             'nro_docto_conciliacion' => '', // Columna 18 - vacía
             'codigo_auxiliar' => $this->formatPayerAuxiliaryCode($payment), // Columna 19 - mismo que haber
             'tipo_documento' => $documentType, // Columna 20 - VP para VirtualPos, o payment_option.report_code
-            'nro_documento' => $this->getDocumentNumber($payment), // Columna 21 - authorization_code
+            'nro_documento' => $this->getTransactionId($payment), // Columna 21 - primeros 8 dígitos del transaction_id VirtualPos
             'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->accounting_date ?? $payment->transaction_date), // Columna V - formato DD-MM-YYYY
             'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->accounting_date ?? $payment->transaction_date),
             'tipo_docto_referencia' => $documentType, // Columna 24 - VP para VirtualPos, o payment_option.report_code
-            'nro_docto_referencia' => $this->getDocumentNumber($payment), // Columna 25 - authorization_code
+            'nro_docto_referencia' => $this->getTransactionId($payment), // Columna 25 - primeros 8 dígitos del transaction_id VirtualPos
             'fecha_docto_referencia' => '', // Columna 26 - vacía
 
             // Montos detalle libro (columnas 27-36 vacías)
@@ -1244,11 +1244,11 @@ class SoftlandDataService
             'nro_docto_conciliacion' => '', // Columna 18 - vacía
             'codigo_auxiliar' => $this->formatPayerAuxiliaryCode($payment), // Columna 19 - mismo que haber
             'tipo_documento' => $documentType, // Columna 20 - VP para VirtualPos, AC por defecto
-            'nro_documento' => $this->getDocumentNumber($payment), // Columna 21 - authorization_code
+            'nro_documento' => $this->getTransactionId($payment), // Columna 21 - primeros 8 dígitos del transaction_id VirtualPos
             'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->accounting_date ?? $payment->transaction_date), // Columna V - formato DD-MM-YYYY
             'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->accounting_date ?? $payment->transaction_date),
             'tipo_docto_referencia' => $documentType, // Columna 24 - VP para VirtualPos, AC por defecto
-            'nro_docto_referencia' => $this->getDocumentNumber($payment), // Columna 25 - authorization_code
+            'nro_docto_referencia' => $this->getTransactionId($payment), // Columna 25 - primeros 8 dígitos del transaction_id VirtualPos
             'fecha_docto_referencia' => '', // Columna 26 - vacía
 
             // Montos detalle libro
@@ -1370,17 +1370,6 @@ class SoftlandDataService
         return "{$programCode}/{$payerName}/{$documentType}";
     }
 
-
-    private function getDocumentNumber($payment): string
-    {
-        // Si es pago con Khipu, usar external_payment_id si existe
-        if ($payment->paymentOption && $payment->paymentOption->report_code === 'KP' && !empty($payment->external_payment_id)) {
-            return $payment->external_payment_id;
-        }
-
-        // Si no es Khipu o no tiene external_payment_id, usar authorization_code
-        return $payment->authorization_code ?? ($payment->buy_order ?? (string)$payment->id);
-    }
 
     /**
      * Obtener installments pagados (cuotas de suscripciones)
