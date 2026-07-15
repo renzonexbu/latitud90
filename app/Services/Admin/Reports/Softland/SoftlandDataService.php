@@ -1073,9 +1073,6 @@ class SoftlandDataService
      */
     private function createACDebitMovement(Payment $payment): array
     {
-        $participant = $payment->order->participant;
-        $paymentOption = $payment->paymentOption;
-
         // Obtener el nombre del pagador/apoderado desde OrderDetail
         $payerName = '';
         $orderDetail = $payment->orderDetail;
@@ -1083,13 +1080,11 @@ class SoftlandDataService
             $payerName = ucwords(strtolower($orderDetail->name));
         }
 
-        // Determinar el tipo de documento según el gateway de pago
-        $documentType = '';
-        if ($payment->paymentGateway && $payment->paymentGateway->code === 'virtualpos') {
-            $documentType = 'VP'; // VirtualPOS
-        } else {
-            $documentType = $paymentOption->report_code ?? '';
-        }
+        // Tipo de documento = método de pago (VP/KP/TC/etc) via helper unificado.
+        // Antes solo verificaba paymentGateway->code === 'virtualpos', y otros gateways
+        // (Khipu, PAT, VPI) caían a un fallback débil que a veces mostraba 'AC' en lugar
+        // del método real. getPaymentMethodCode() ya normaliza PAT/VPI → VP.
+        $documentType = $this->getPaymentMethodCode($payment);
 
         return [
             // Información básica
@@ -1208,15 +1203,11 @@ class SoftlandDataService
     {
         $participant = $payment->order->participant;
         $program = $payment->order->programCourse;
-        $paymentOption = $payment->paymentOption;
 
-        // Determinar el tipo de documento según el gateway de pago
-        $documentType = '';
-        if ($payment->paymentGateway && $payment->paymentGateway->code === 'virtualpos') {
-            $documentType = 'VP'; // VirtualPOS
-        } else {
-            $documentType = 'AC'; // Anticipo por defecto
-        }
+        // Tipo de documento = método de pago (VP/KP/TC/etc) via helper unificado.
+        // getPaymentMethodCode() ya normaliza PAT/VPI → VP y no depende solo del
+        // paymentGateway->code, que fallaba para Khipu y variantes.
+        $documentType = $this->getPaymentMethodCode($payment);
 
         return [
             // Información básica
@@ -1359,13 +1350,8 @@ class SoftlandDataService
             $payerName = ucwords(strtolower($orderDetail->name));
         }
 
-        // Determinar el tipo de documento según el gateway de pago
-        $documentType = '';
-        if ($payment->paymentGateway && $payment->paymentGateway->code === 'virtualpos') {
-            $documentType = 'VP'; // VirtualPOS
-        } else {
-            $documentType = 'AC'; // Anticipo por defecto
-        }
+        // Tipo de documento = método de pago (VP/KP/TC/etc) via helper unificado.
+        $documentType = $this->getPaymentMethodCode($payment);
 
         return "{$programCode}/{$payerName}/{$documentType}";
     }
@@ -1611,13 +1597,15 @@ class SoftlandDataService
 
         // Determinar cuenta según el document_type del Payment
         $payment = $installment['payment'] ?? null;
-        $isVirtualPos = $payment && $payment->paymentGateway && $payment->paymentGateway->code === 'virtualpos';
 
-        // Si es AC, va a cuenta 060, sino a 021
+        // Si es AC, va a cuenta 2-1-04-051, sino a 3-1-01-021
         $accountCode = ($documentType === 'AC') ? '2-1-04-051' : '3-1-01-021';
 
-        // Si es VirtualPos, tipo de documento es VP
-        $displayDocumentType = $isVirtualPos ? 'VP' : $documentType;
+        // Tipo de documento visible = método de pago (VP/KP/etc) via helper unificado.
+        // Para AC, el pago casi siempre viene por VirtualPos → resuelve a VP.
+        $displayDocumentType = $payment
+            ? $this->getPaymentMethodCode($payment)
+            : $documentType;
 
         // Descripción: para AC usar formato enrollment_code/payer_name/VP, para B2 el formato de programa
         $description = '';
