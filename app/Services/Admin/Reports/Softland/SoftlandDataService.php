@@ -1216,10 +1216,11 @@ class SoftlandDataService
         $participant = $payment->order->participant;
         $program = $payment->order->programCourse;
 
-        // Tipo de documento = método de pago (VP/KP/TC/etc) via helper unificado.
-        // getPaymentMethodCode() ya normaliza PAT/VPI → VP y no depende solo del
-        // paymentGateway->code, que fallaba para Khipu y variantes.
-        $documentType = $this->getPaymentMethodCode($payment);
+        // Tipo de documento en el asiento contable HABER de AC: siempre 'AC'
+        // (Carmen 2026-07-15). Antes se usaba el método de pago (VP/KP/etc),
+        // pero para las columnas T (tipo_documento) y X (tipo_docto_referencia)
+        // contabilidad quiere el tipo de documento fiscal, no el instrumento.
+        $documentType = 'AC';
 
         return [
             // Información básica
@@ -1346,26 +1347,31 @@ class SoftlandDataService
 
     /**
      * Formatea la descripción del movimiento AC (HABER)
-     * Formato: programCode/payer_name/document_type
-     * Antes se usaba enrollment_code (RUT-Nro. Negocio), pero contabilidad
-     * pidió sacar el RUT y empezar desde el número de programa (Carmen 2026-07).
+     * Formato: programCode/nombre_completo_participante/forma_pago
+     * Historial:
+     *  - Antes: enrollment_code/payer_name/docType (con RUT y nombre pagador).
+     *  - Carmen 2026-07 (v1): programCode/payer_name/docType (sin RUT).
+     *  - Carmen 2026-07-15 (v2): usar NOMBRE COMPLETO DEL PARTICIPANTE (alumno),
+     *    no el pagador. La forma de pago (VP/KP/TC/etc) sigue al final.
      */
     private function formatACCreditDescription(Payment $payment, $participant, $program): string
     {
         // Código del programa (Nro. Negocio). El $program que llega es un ProgramCourse.
         $programCode = $program?->code ?? 'SIN-CODIGO';
 
-        // Obtener el nombre del pagador/apoderado desde OrderDetail
-        $payerName = '';
-        $orderDetail = $payment->orderDetail;
-        if ($orderDetail && $orderDetail->name) {
-            $payerName = ucwords(strtolower($orderDetail->name));
+        // Nombre completo del PARTICIPANTE (alumno).
+        // Fallback al pagador (orderDetail.name) si no viene el participante.
+        $participantName = '';
+        if ($participant && !empty($participant->full_name)) {
+            $participantName = ucwords(strtolower($participant->full_name));
+        } elseif ($payment->orderDetail && !empty($payment->orderDetail->name)) {
+            $participantName = ucwords(strtolower($payment->orderDetail->name));
         }
 
-        // Tipo de documento = método de pago (VP/KP/TC/etc) via helper unificado.
-        $documentType = $this->getPaymentMethodCode($payment);
+        // Forma de pago (VP/KP/TC/etc) — PAT/VPI se muestran como VP.
+        $paymentMethod = $this->getPaymentMethodCode($payment);
 
-        return "{$programCode}/{$payerName}/{$documentType}";
+        return "{$programCode}/{$participantName}/{$paymentMethod}";
     }
 
 
@@ -1619,31 +1625,48 @@ class SoftlandDataService
             ? $this->getPaymentMethodCode($payment)
             : $documentType;
 
-        // Descripción: para AC usar formato enrollment_code/payer_name/VP, para B2 el formato de programa
+        // Descripción y campos documentales según el tipo del documento fiscal.
+        // - AC: glosa = programCode/nombre_participante/forma_pago (Carmen 2026-07-15).
+        //   Además, en el asiento contable T y X son 'AC' (tipo fiscal),
+        //   y las columnas de nro documento/auxiliar/fechas se llenan con el
+        //   ID transacción del pago VirtualPos y RUT pagador.
+        // - B2 y demás: solo la descripción; el resto de campos siguen vacíos.
         $description = '';
-        if ($documentType === 'AC') {
-            // Para AC (cuenta 060): enrollment_code/payer_name/VP
-            // Obtener enrollment_code
-            // Obtener nombre del pagador
-            $participant = $installment['participant'] ?? null;
-            $buyerData = $installment['buyer_data'] ?? [];
-            $payerName = '';
-            if (!empty($buyerData['first_name']) && !empty($buyerData['first_last_name'])) {
-                $firstName = ucwords(strtolower($buyerData['first_name']));
-                $lastName = ucwords(strtolower($buyerData['first_last_name']));
-                $payerName = "{$firstName} {$lastName}";
-            } elseif ($participant) {
-                $payerName = $participant->full_name ?? '';
-            }
+        $isAC = $documentType === 'AC';
 
-            // Glosa AC: {programCode}/{payerName}/{docType} — sin RUT (Carmen 2026-07).
-            // Antes empezaba con enrollment_code (RUT-Nro. Negocio), ahora solo el programa.
-            $description = "{$programCode}/{$payerName}/{$displayDocumentType}";
+        if ($isAC) {
+            $participant = $installment['participant'] ?? null;
+            $participantName = '';
+            if ($participant && !empty($participant->full_name)) {
+                $participantName = ucwords(strtolower($participant->full_name));
+            } else {
+                // Fallback al pagador (buyer_data) si el participante no está disponible
+                $buyerData = $installment['buyer_data'] ?? [];
+                if (!empty($buyerData['first_name']) && !empty($buyerData['first_last_name'])) {
+                    $participantName = ucwords(strtolower($buyerData['first_name']))
+                        . ' ' . ucwords(strtolower($buyerData['first_last_name']));
+                }
+            }
+            $description = "{$programCode}/{$participantName}/{$displayDocumentType}";
         } else {
             // Para B2 (cuenta 021): código programa + tipo doc emitido (sin N, sin VP)
             $boletaNumber = $payment->bsale_number ?? ($installment['virtualpos_charge_id'] ?? ('INST-' . $installment['installment_id']));
             $description = "{$programCode} {$documentType}-{$boletaNumber}";
         }
+
+        // Campos documentales solo llenos para AC.
+        $acTipoDoc = $isAC ? 'AC' : '';
+        $acNroDoc = $isAC ? $this->getInstallmentTransactionId($installment) : '';
+        $acAuxiliar = '';
+        if ($isAC) {
+            $buyerData = $installment['buyer_data'] ?? [];
+            if (!empty($buyerData['document_number'])) {
+                $acAuxiliar = $this->removeRutDV($buyerData['document_number']);
+            } elseif (($installment['participant'] ?? null) && $installment['participant']->document_number) {
+                $acAuxiliar = $this->removeRutDV($installment['participant']->document_number);
+            }
+        }
+        $acFecha = $isAC ? $this->formatDateDDMMYYYY($installment['paid_at']) : '';
 
         return [
             // Información básica
@@ -1664,18 +1687,19 @@ class SoftlandDataService
             'cantidad_instrumento_financiero' => '',
             'codigo_detalle_gasto' => '',
             'cantidad_concepto_gasto' => '',
-            'codigo_centro_costo' => 'E2-02-01',
+            // AC no usa centro de costo (Carmen 2026-07-15); B2 mantiene E2-02-01.
+            'codigo_centro_costo' => $isAC ? '' : 'E2-02-01',
 
             // Documentación
             'tipo_docto_conciliacion' => '',
             'nro_docto_conciliacion' => '',
-            'codigo_auxiliar' => '',
-            'tipo_documento' => '',
-            'nro_documento' => '',
-            'fecha_emision_docto' => '',
-            'fecha_vencimiento_docto' => '',
-            'tipo_docto_referencia' => '',
-            'nro_docto_referencia' => '',
+            'codigo_auxiliar' => $acAuxiliar,
+            'tipo_documento' => $acTipoDoc,
+            'nro_documento' => $acNroDoc,
+            'fecha_emision_docto' => $acFecha,
+            'fecha_vencimiento_docto' => $acFecha,
+            'tipo_docto_referencia' => $acTipoDoc,
+            'nro_docto_referencia' => $acNroDoc,
             'nro_correlativo_interno' => '',
 
             // Montos detalle libro
