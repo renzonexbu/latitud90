@@ -736,13 +736,40 @@ class SoftlandDataService
      */
     private function getAccountCodeByPaymentMethod(string $paymentMethod): string
     {
+        // Familias contables (Carmen 2026-07-17 confirmó agrupación):
+        //   VIRTUAL  (VP, KP, PAT, VPI)         → 1-1-02-014
+        //   TRANSBANK (TC, WP)                  → 1-1-02-009
+        //   BANCO    (TE, DP)                   → 1-1-01-039
+        //   AC (uso legacy en DEBE de anticipo) → 2-1-04-051
         return match (strtoupper($paymentMethod)) {
-            'AC'                            => '2-1-04-051',
-            'TC'                            => '1-1-02-009',
-            'TE', 'DP'                      => '1-1-01-039',
-            'WP', 'KP', 'VP', 'PAT', 'VPI'  => '1-1-02-014',
-            default                         => '1-1-02-014',
+            'AC'                    => '2-1-04-051',
+            'TC', 'WP'              => '1-1-02-009',
+            'TE', 'DP'              => '1-1-01-039',
+            'VP', 'KP', 'PAT', 'VPI'=> '1-1-02-014',
+            default                 => '1-1-02-014',
         };
+    }
+
+    /**
+     * Nro. de documento del asiento contable según el medio de pago (Carmen 2026-07-17):
+     *   - VIRTUAL (VP/KP/PAT/VPI): ID de transacción (primeros 8 del uuid)
+     *   - TRANSBANK (TC/WP)      : código de autorización
+     *   - BANCO (TE/DP)          : fecha del pago en formato DDMMAA (6 dígitos)
+     * Fallback: transaction_id (comportamiento histórico).
+     */
+    private function getAccountingDocumentNumber(Payment $payment, string $paymentMethod): string
+    {
+        $method = strtoupper($paymentMethod);
+        $paymentDate = $payment->accounting_date ?? $payment->transaction_date;
+
+        if (in_array($method, ['TE', 'DP'], true)) {
+            return $paymentDate ? Carbon::parse($paymentDate)->format('dmy') : '';
+        }
+        if (in_array($method, ['TC', 'WP'], true)) {
+            return (string) ($payment->authorization_code ?? $payment->id);
+        }
+        // VP, KP, PAT, VPI y default: primeros 8 del transaction_id
+        return $this->getTransactionId($payment);
     }
 
     /**
@@ -1092,15 +1119,17 @@ class SoftlandDataService
             $payerName = ucwords(strtolower($orderDetail->name));
         }
 
-        // Tipo de documento = método de pago (VP/KP/TC/etc) via helper unificado.
-        // Antes solo verificaba paymentGateway->code === 'virtualpos', y otros gateways
-        // (Khipu, PAT, VPI) caían a un fallback débil que a veces mostraba 'AC' en lugar
-        // del método real. getPaymentMethodCode() ya normaliza PAT/VPI → VP.
-        $documentType = $this->getPaymentMethodCode($payment);
+        // Método de pago (VP/KP/TC/WP/TE/DP) via helper unificado — PAT/VPI → VP.
+        $paymentMethod = $this->getPaymentMethodCode($payment);
+        // Carmen 2026-07-17: el DEBE del AC representa el medio de pago del pagador,
+        // así que la cuenta contable, tipo doc y nro doc dependen del método usado
+        // (VIRTUAL/TRANSBANK/BANCO), NO son un tipo AC fijo.
+        $accountCode = $this->getAccountCodeByPaymentMethod($paymentMethod);
+        $accountingDocNumber = $this->getAccountingDocumentNumber($payment, $paymentMethod);
 
         return [
             // Información básica
-            'codigo_plan_cuenta' => '2-1-04-051', // Cuenta específica para AC (Anticipo) según tabla contable
+            'codigo_plan_cuenta' => $accountCode, // Cuenta según medio de pago (014/009/039)
             'debe' => (int) abs($payment->amount), // Mismo monto que haber sin decimales
             'haber' => 0, // Vacío para DEBE
             'descripcion_movimiento' => $payerName, // Solo el nombre del pagador/apoderado
@@ -1122,13 +1151,13 @@ class SoftlandDataService
             // Documentación (columnas 17-26)
             'tipo_docto_conciliacion' => '', // Columna 17 - vacía
             'nro_docto_conciliacion' => '', // Columna 18 - vacía
-            'codigo_auxiliar' => $this->formatPayerAuxiliaryCode($payment), // Columna 19 - mismo que haber
-            'tipo_documento' => $documentType, // Columna 20 - VP para VirtualPos, o payment_option.report_code
-            'nro_documento' => $this->getTransactionId($payment), // Columna 21 - primeros 8 dígitos del transaction_id VirtualPos
+            'codigo_auxiliar' => $this->formatPayerAuxiliaryCode($payment), // Columna 19 - RUT pagador sin DV
+            'tipo_documento' => $paymentMethod, // Columna 20 - método de pago (VP/KP/TC/WP/TE/DP)
+            'nro_documento' => $accountingDocNumber, // Columna 21 - según método: uuid/auth_code/DDMMAA
             'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->accounting_date ?? $payment->transaction_date), // Columna V - formato DD-MM-YYYY
             'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->accounting_date ?? $payment->transaction_date),
-            'tipo_docto_referencia' => $documentType, // Columna 24 - VP para VirtualPos, o payment_option.report_code
-            'nro_docto_referencia' => $this->getTransactionId($payment), // Columna 25 - primeros 8 dígitos del transaction_id VirtualPos
+            'tipo_docto_referencia' => $paymentMethod, // Columna 24 - mismo que tipo_documento
+            'nro_docto_referencia' => $accountingDocNumber, // Columna 25 - mismo que nro_documento
             'fecha_docto_referencia' => '', // Columna 26 - vacía
 
             // Montos detalle libro (columnas 27-36 vacías)
@@ -1449,41 +1478,61 @@ class SoftlandDataService
         $participant = $installment['participant'];
         $buyerData = $installment['buyer_data'];
 
-        // Código auxiliar del ALUMNO sin DV
+        $documentType = $installment['document_type'] ?? 'B2';
+        $payment = $installment['payment'] ?? null;
+        $isAC = $documentType === 'AC';
+
+        // Método de pago (VP para cuotas PAT, KP para Khipu, etc). Usado sólo en AC.
+        $paymentMethod = $payment ? $this->getPaymentMethodCode($payment) : 'VP';
+
+        // Código auxiliar:
+        //  - AC: RUT PAGADOR sin DV (Carmen 2026-07-17)
+        //  - B2 y demás: RUT ALUMNO sin DV (histórico)
         $auxiliarCode = '';
-        if ($participant && $participant->document_number) {
+        if ($isAC) {
+            if (!empty($buyerData['document_number'])) {
+                $auxiliarCode = $this->removeRutDV($buyerData['document_number']);
+            } elseif ($participant && $participant->document_number) {
+                $auxiliarCode = $this->removeRutDV($participant->document_number);
+            }
+        } elseif ($participant && $participant->document_number) {
             $auxiliarCode = $this->removeRutDV($participant->document_number);
         }
 
-        $documentType = $installment['document_type'] ?? 'B2';
-        $payment = $installment['payment'] ?? null;
+        // Cuenta contable:
+        //  - AC: según medio de pago (Carmen 2026-07-17). 014/009/039.
+        //  - B2 y demás: 1-1-02-010 (histórico).
+        $accountCode = $isAC
+            ? $this->getAccountCodeByPaymentMethod($paymentMethod)
+            : '1-1-02-010';
 
-        // Nro. documento del movimiento:
-        //  - B2: bsale_number (número de boleta)
-        //  - AC: authorization_code del pago VirtualPos (lo pide contabilidad).
-        //    Antes se usaba INST-{id} o virtualpos_charge_id, quedaba ilegible.
-        if ($documentType === 'AC') {
-            $boletaNumber = $payment->authorization_code
-                ?? $installment['virtualpos_charge_id']
-                ?? ('INST-' . $installment['installment_id']);
+        // Tipo doc del asiento:
+        //  - AC: método de pago (VP/KP/TC/etc)
+        //  - B2 y demás: tipo doc fiscal
+        $asientoTipoDoc = $isAC ? $paymentMethod : $documentType;
+
+        // Nro doc del asiento:
+        //  - AC: según medio (uuid/auth_code/DDMMAA)
+        //  - B2: bsale_number
+        if ($isAC) {
+            $asientoNroDoc = $payment
+                ? $this->getAccountingDocumentNumber($payment, $paymentMethod)
+                : ($payment->authorization_code ?? ('INST-' . $installment['installment_id']));
         } else {
-            $boletaNumber = $payment->bsale_number
+            $asientoNroDoc = $payment->bsale_number
                 ?? ($installment['virtualpos_charge_id'] ?? ('INST-' . $installment['installment_id']));
         }
-
-        // Si el Payment tiene document_type='AC', usar cuenta 2-1-04-051 según tabla contable;
-        // para B2 y demás, cuenta 1-1-02-010.
-        $accountCode = ($documentType === 'AC') ? '2-1-04-051' : '1-1-02-010';
 
         // Nombre del pagador (buyer_data), fallback al participante
         $buyerName = $this->getBuyerNameFromData($buyerData, $participant);
 
         // Descripción según tipo
-        if ($documentType === 'AC') {
+        if ($isAC) {
             $description = $buyerName;
         } else {
-            $description = "{$documentType}-{$boletaNumber} {$buyerName}";
+            $description = "{$documentType}-{$asientoNroDoc} {$buyerName}";
         }
+
 
         return [
             // Información básica
@@ -1510,12 +1559,12 @@ class SoftlandDataService
             'tipo_docto_conciliacion' => '',
             'nro_docto_conciliacion' => '',
             'codigo_auxiliar' => $auxiliarCode,
-            'tipo_documento' => $documentType,
-            'nro_documento' => $boletaNumber,
+            'tipo_documento' => $asientoTipoDoc,
+            'nro_documento' => $asientoNroDoc,
             'fecha_emision_docto' => $this->formatDateDDMMYYYY($installment['paid_at']),
             'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($installment['paid_at']),
-            'tipo_docto_referencia' => $documentType,
-            'nro_docto_referencia' => $boletaNumber,
+            'tipo_docto_referencia' => $asientoTipoDoc,
+            'nro_docto_referencia' => $asientoNroDoc,
             'nro_correlativo_interno' => '',
 
             // Montos detalle libro (columnas 27-36)
