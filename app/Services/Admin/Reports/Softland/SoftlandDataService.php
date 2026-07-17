@@ -130,8 +130,12 @@ class SoftlandDataService
 
         // Códigos presenciales que van a cuenta bancaria (1-1-01-039)
         $bankCodes = ['presential_bank_transfer', 'presential_deposit'];
-        // Códigos presenciales que van a cuenta oficina (1-1-02-009)
-        $officeCodes = ['presential_pos_office', 'presential_webpay', 'presential_debit_credit'];
+        // Códigos presenciales que van a cuenta oficina TRANSBANK (1-1-02-009).
+        // Sólo POS Oficina físico (TC) y Webpay presencial (WP). El
+        // 'presential_debit_credit' (Link TD/TC, report_code=VP) se procesa
+        // por VirtualPos → debe caer en 1-1-02-014 vía createPaymentDebitMovement
+        // como el resto de la familia VIRTUAL (Carmen 2026-07-17).
+        $officeCodes = ['presential_pos_office', 'presential_webpay'];
 
         foreach ($payments as $payment) {
             // Solo verificar que tenga orden
