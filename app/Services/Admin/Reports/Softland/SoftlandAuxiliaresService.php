@@ -52,10 +52,12 @@ class SoftlandAuxiliaresService
             'order.participant'
         ]);
 
-        // Filtrar por pagos B2 (approved+completed) en el rango (presenciales + pasarela + masivo)
+        // Filtrar por pagos B2/AC (approved+completed) en el rango.
+        // AC (anticipos años futuros) DEBE incluirse: los clientes que pagan
+        // por adelantado también son auxiliares para Softland (Carmen 2026-07).
         $query->whereHas('order.payments', function ($q) use ($filters) {
             $q->whereIn('status', ['approved', 'completed'])
-              ->where('document_type', 'B2');
+              ->whereIn('document_type', ['B2', 'AC']);
             if (!empty($filters['dateFrom'])) {
                 $q->whereDate('transaction_date', '>=', $filters['dateFrom']);
             }
@@ -109,10 +111,11 @@ class SoftlandAuxiliaresService
         $subscriptionQuery = \App\Models\ProgramSubscription::whereNotNull('buyer_data')
             ->with('participant');
 
-        // Filtrar suscripciones por pagos B2 (approved+completed) en el rango
+        // Filtrar suscripciones por pagos B2/AC (approved+completed) en el rango.
+        // Incluye anticipos años futuros (Carmen 2026-07).
         $subscriptionQuery->whereHas('orders.payments', function ($q) use ($filters) {
             $q->whereIn('status', ['approved', 'completed'])
-              ->where('document_type', 'B2');
+              ->whereIn('document_type', ['B2', 'AC']);
             if (!empty($filters['dateFrom'])) {
                 $q->whereDate('transaction_date', '>=', $filters['dateFrom']);
             }
