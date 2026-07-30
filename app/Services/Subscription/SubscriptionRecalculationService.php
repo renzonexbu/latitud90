@@ -318,6 +318,21 @@ class SubscriptionRecalculationService
                 'cancelled_at' => now()
             ]);
 
+            // Cancelar plan de cuotas y cuotas pendientes (mismo patrón que
+            // CancelSubscriptionService). Sin esto el installment_plan queda
+            // 'active' y el checkout del programa lockea al participante en PAT
+            // sin dejar elegir otra modalidad (bug reportado con Josefa Campos).
+            $installmentPlan = \App\Models\InstallmentPlan::where('participant_id', $subscription->participant_id)
+                ->where('program_id', $subscription->program_id)
+                ->first();
+
+            if ($installmentPlan) {
+                $installmentPlan->update(['status' => 'cancelled']);
+                $installmentPlan->installments()
+                    ->where('status', 'pending')
+                    ->update(['status' => 'cancelled']);
+            }
+
             Log::info('SubscriptionRecalculation: Suscripción cancelada exitosamente', [
                 'subscription_id' => $subscription->id
             ]);
