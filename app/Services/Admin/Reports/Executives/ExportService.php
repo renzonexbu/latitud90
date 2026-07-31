@@ -577,14 +577,16 @@ class ExportService
                     ->sum('amount');
             }
 
-            // 2. Cuotas de suscripción pagadas: reusar $activePlan (misma fuente que cuotas pagadas).
-            // Esto soluciona el caso de planes con status='cancelled' vinculados a suscripciones
-            // ACTIVA (inconsistencia de datos) — sin esta lógica el abono no contabilizaba las
-            // cuotas pagadas del PAT y el saldo aparecía completo aunque ya hubiera abonos.
+            // 2. Cuotas PAT cobradas: sumar desde payments con payment_source='subscription'.
+            // Antes se sumaba desde installments.status='paid' del $activePlan, pero si el
+            // plan queda 'cancelled' (típico tras cancelar la PAT) las cuotas ya cobradas
+            // se volvían invisibles y el abono aparecía incompleto vs la pantalla y el
+            // Consolidado. Mismo criterio que CourseDataService y ParticipantFinancialService.
             $subscriptionPayments = 0.0;
-            if ($activePlan) {
-                $subscriptionPayments = (float) $activePlan->installments()
-                    ->where('status', 'paid')
+            if (!empty($orderIds)) {
+                $subscriptionPayments = (float) Payment::whereIn('order_id', $orderIds)
+                    ->whereIn('status', ['approved', 'completed'])
+                    ->where('payment_source', 'subscription')
                     ->sum('amount');
             }
 
