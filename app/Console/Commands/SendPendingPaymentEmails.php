@@ -817,8 +817,12 @@ class SendPendingPaymentEmails extends Command
 
         // Obtener pagos pending de las últimas 48 horas que tengan token (Virtualpos)
         // Excluir pagos de suscripción (payment_source puede ser null o distinto de 'subscription')
+        // Ventana acotada a 2h (antes 48h): cada pago pending se consultaba a VirtualPos
+        // CADA MINUTO durante 48h (~2.880 consultas/orden). VirtualPos reportó saturación
+        // de su API (25/08/2026) y pidió: esperar webhook + conciliación 1 vez al día.
+        // Los pendientes >2h se resuelven en la conciliación diaria (payments:reconfirm).
         $pendingPayments = Payment::where('status', 'pending')
-            ->where('created_at', '>=', Carbon::now()->subHours(48))
+            ->where('created_at', '>=', Carbon::now()->subHours(2))
             ->whereNotNull('token')
             ->where('token', '!=', '')
             ->where(function ($q) {

@@ -71,6 +71,16 @@ class Kernel extends ConsoleKernel
             ->runInBackground()
             ->appendOutputTo($this->getScheduleLogPath('expire_stale_subscriptions'));
 
+        // 4b. Conciliación diaria de pagos pendientes con la pasarela - 4:30 AM
+        // Pedido por VirtualPos (25/08/2026): los pendientes >2h ya NO se consultan
+        // cada minuto (saturaba su API); se resuelven en esta pasada única diaria.
+        $schedule->command('payments:reconfirm --status=pending')
+            ->dailyAt('04:30')
+            ->timezone('America/Santiago')
+            ->withoutOverlapping(60)
+            ->runInBackground()
+            ->appendOutputTo($this->getScheduleLogPath('daily_reconfirm'));
+
         // 5. Limpieza de logs cada noche a las 3:00 AM
         // Conserva últimos 7 días; libera espacio en disco
         $schedule->command('logs:cleanup --days=7')
