@@ -159,7 +159,7 @@ class CreateRefundController extends Controller
                 ];
             });
 
-        $countries = Country::where('name', 'Chile')->get();
+        $countries = Country::forSelect();
         $regions = Region::with('comunes')->get();
         $documentTypes = Document::all();
 

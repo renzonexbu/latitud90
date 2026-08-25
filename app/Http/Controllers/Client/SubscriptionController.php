@@ -648,8 +648,11 @@ class SubscriptionController extends Controller
                 // Cancelar orden
                 $order->update(['status' => 'cancelled']);
 
-                // Cancelar solo las cuotas (el plan NO se cancela)
-                $installmentPlan->installments()->update(['status' => 'cancelled']);
+                // Cancelar solo las cuotas pendientes (el plan NO se cancela)
+                $installmentPlan->installments()
+                    ->whereIn('status', ['pending', 'overdue'])
+                    ->whereNull('payment_id')
+                    ->update(['status' => 'cancelled']);
 
                 DB::commit();
 
@@ -1433,12 +1436,15 @@ class SubscriptionController extends Controller
                         // Cancelar la orden
                         $order->update(['status' => 'cancelled']);
 
-                        // Cancelar solo las cuotas (el plan NO se cancela)
+                        // Cancelar solo las cuotas pendientes (preservar las ya cobradas)
                         $installmentPlan = $order->installmentPlan;
                         if ($installmentPlan) {
-                            $installmentPlan->installments()->update(['status' => 'cancelled']);
+                            $installmentPlan->installments()
+                                ->whereIn('status', ['pending', 'overdue'])
+                                ->whereNull('payment_id')
+                                ->update(['status' => 'cancelled']);
 
-                            Log::info('checkFirstChargeStatus: Cuotas canceladas', [
+                            Log::info('checkFirstChargeStatus: Cuotas pendientes canceladas', [
                                 'subscription_id' => $subscriptionId,
                                 'order_id' => $order->id,
                                 'installment_plan_id' => $installmentPlan->id

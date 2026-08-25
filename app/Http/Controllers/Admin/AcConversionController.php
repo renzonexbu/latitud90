@@ -26,6 +26,24 @@ class AcConversionController extends Controller
             // Aceptar ambos para que todos los AC válidos aparezcan en la conversión.
             ->whereIn('status', ['approved', 'completed'])
             ->whereRaw("(gateway_response IS NULL OR JSON_EXTRACT(gateway_response, '$.ac_converted') IS NULL)")
+            // Excluir montos negativos (RA guardados con document_type='AC')
+            ->where('amount', '>', 0)
+            // Excluir AC ya revertidos por un RA administrativo del MISMO participante+programa
+            // con MONTO EQUIVALENTE (±2 pesos de tolerancia — antes de redondear parseAmount
+            // había drift; ej. AC=580.090 vs RA=580.089). El RA no tiene link directo al AC
+            // original, así que el matching es por participant+program+monto.
+            // ponytail: 2 AC idénticos + 1 RA oculta ambos; caso raro, aceptable.
+            ->whereRaw("NOT EXISTS (
+                SELECT 1 FROM payments p_ra
+                INNER JOIN orders o_ra ON o_ra.id = p_ra.order_id
+                INNER JOIN orders o_ac ON o_ac.id = payments.order_id
+                WHERE p_ra.status IN ('approved','completed')
+                AND p_ra.amount < 0
+                AND JSON_EXTRACT(p_ra.gateway_response, '$.refund_type') = 'refund_admin_reversal'
+                AND o_ra.participant_id = o_ac.participant_id
+                AND o_ra.program_id = o_ac.program_id
+                AND ABS(ABS(p_ra.amount) - payments.amount) <= 2
+            )")
             ->with([
                 'order.participant.documentType',
                 'order.programCourse',

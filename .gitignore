@@ -32,3 +32,12 @@ storage/framework/views/*
 !storage/framework/views/.gitkeep
 storage/logs/*
 !storage/logs/.gitkeep
+
+# Backups y archivos de trabajo local
+/respaldo_old
+/public/build.rar
+/.user.ini
+/php.ini
+*.xlsx
+*.xls
+*.rar

@@ -34,8 +34,7 @@ class GuardianAuthController extends Controller
      */
     public function showRegisterForm(Request $request)
     {
-        // Obtener países (solo Chile)
-        $countries = Country::where('name', 'Chile')->get();
+        $countries = Country::forSelect();
 
         // Obtener regiones y comunas
         $regions = Region::with('comunes')->get();
@@ -88,8 +87,16 @@ class GuardianAuthController extends Controller
             'phone_code' => 'required|string|max:10',
             'phone' => 'required|string|max:20',
             'country_id' => 'required|exists:countries,id',
-            'region_id' => 'required|exists:regions,id',
-            'comune_id' => 'required|exists:comunes,id',
+            'region_id' => [
+                'nullable',
+                Rule::requiredIf(fn () => (int) $request->country_id === (int) Country::chileId()),
+                'exists:regions,id',
+            ],
+            'comune_id' => [
+                'nullable',
+                Rule::requiredIf(fn () => (int) $request->country_id === (int) Country::chileId()),
+                'exists:comunes,id',
+            ],
             'password' => 'required|string|min:8|confirmed',
             'terms_accepted' => 'required|accepted',
         ], [

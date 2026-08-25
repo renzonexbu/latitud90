@@ -299,11 +299,11 @@ class ImportManualPaymentsCommand extends Command
     private function parseAmount($value): float
     {
         if (is_numeric($value)) {
-            return (float) $value;
+            return round((float) $value);
         }
         $clean = preg_replace('/[^0-9,.]/', '', $value);
         $clean = str_replace(['.', ','], ['', '.'], $clean);
-        return (float) $clean;
+        return round((float) $clean);
     }
 
     private function parseDate($value): Carbon

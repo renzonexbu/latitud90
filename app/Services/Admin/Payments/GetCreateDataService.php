@@ -20,20 +20,17 @@ class GetCreateDataService
         $programs = Program::with(['course.participants'])->where('active', true)->get();
         
         // Cargar datos para el formulario del comprador
-        $countries = Country::where('name', 'Chile')->get();
+        $countries = Country::forSelect();
         $regions = Region::with('comunes')->get();
         $documentTypes = Document::all();
         
-        // Tipos de pago presencial para el formulario.
-        // Aporte (AP) NO va acá: es un concepto contable, no un método de pago.
-        // Ahora se maneja con el toggle "Abono/Aporte" del formulario, que envía
-        // el flag is_aporte al backend; con ese flag el StorePaymentService
-        // sobrescribe la payment_option a 'presential_aporte'.
+        // Tipos de pago presencial para el formulario
         $paymentTypeOptions = [
             ['value' => 'presential_office_card', 'label' => 'Boleta/Efectivo (BX)', 'report_code' => 'BX'],
             ['value' => 'presential_bank_transfer', 'label' => 'Transferencia Electrónica (TE)', 'report_code' => 'TE'],
             ['value' => 'presential_check', 'label' => 'Cheque (CH)', 'report_code' => 'CH'],
             ['value' => 'presential_deposit', 'label' => 'Depósito (DP)', 'report_code' => 'DP'],
+            ['value' => 'presential_aporte', 'label' => 'Aporte (AP)', 'report_code' => 'AP'],
             ['value' => 'presential_credit_temp', 'label' => 'Crédito Temporal (CT)', 'report_code' => 'CT'],
         ];
 

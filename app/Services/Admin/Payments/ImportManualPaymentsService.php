@@ -2083,11 +2083,11 @@ class ImportManualPaymentsService
         if (preg_match('/^\-?\d{1,3}(\.\d{3})+(,\d+)?$/', $cleaned)) {
             $cleaned = str_replace('.', '', $cleaned);
             $cleaned = str_replace(',', '.', $cleaned);
-            return (float) $cleaned;
+            return round((float) $cleaned);
         }
 
         if (is_numeric($value)) {
-            return (float) $value;
+            return round((float) $value);
         }
 
         // Handle standard format: 1,234,567.89
@@ -2099,7 +2099,9 @@ class ImportManualPaymentsService
             $cleaned = str_replace(',', '.', $cleaned);
         }
 
-        return (float) $cleaned;
+        // Redondeo a entero: CLP no tiene centavos. Evita AC/RA con drift de decimales
+        // (ej. AC=529025.37 vs RA=529025.00) que rompe el matching de reversos.
+        return round((float) $cleaned);
     }
 
     /**

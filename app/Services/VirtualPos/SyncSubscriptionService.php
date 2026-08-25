@@ -289,12 +289,28 @@ class SyncSubscriptionService
                 'virtualpos_charge_id' => $chargeId,
             ];
 
-            // Solo marcar como cancelada (no requiere crear Payment)
-            if ($isCancelled && $installment->status !== 'cancelled') {
+            // Solo marcar como cancelada si NO hay cobro real local.
+            // Tras cancelar una suscripción en VirtualPos, cargos YA PAGADOS a veces
+            // aparecen como "cancelado" en charge_program; si pisamos status='cancelled'
+            // aquí, ProgramDetailService deja de contarlos y el PAT infla el "Pagarás"
+            // (caso Blanca Del Real / cuotas con payment_id intacto).
+            $hasLocalPayment = $installment->is_paid
+                || $installment->payment_id
+                || $installment->status === 'paid';
+
+            if ($isCancelled && $installment->status !== 'cancelled' && !$hasLocalPayment) {
                 $updateData['status'] = 'cancelled';
                 Log::channel('daily')->info("SYNC: Cuota #{$chargeNumber} marcada como CANCELADA", [
                     'installment_id' => $installment->id,
                     'charge_id' => $chargeId,
+                ]);
+            } elseif ($isCancelled && $hasLocalPayment) {
+                Log::channel('daily')->info("SYNC: Cuota #{$chargeNumber} NO cancelada (tiene pago local)", [
+                    'installment_id' => $installment->id,
+                    'charge_id' => $chargeId,
+                    'payment_id' => $installment->payment_id,
+                    'status' => $installment->status,
+                    'is_paid' => $installment->is_paid,
                 ]);
             }
 

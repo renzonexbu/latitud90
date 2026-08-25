@@ -182,10 +182,14 @@ class ExecutivesPartialAccountService
                 // los report_code VP/KP/TE/etc. y dejaba afuera CT (Crédito Temporal),
                 // generando montos visiblemente menores que el reporte exportado.
                 $abono = $totalPaid - $aporteAmount;
-                $saldo = round(-$financial['pending_amount'], 2);
-                if ($financial['pending_amount'] <= 0 && $totalPaid > $price) {
-                    $saldo = round($totalPaid - $price, 2);
-                }
+                // Misma fórmula que ExportService (Excel):
+                // Saldo = (Abono + Aporte/Beca + Liberado) - Precio
+                // Positivo = excedente / a favor; Negativo = deudor.
+                // No usar pending_amount aquí: ese valor ya descuenta el liberado del
+                // precio neto y, si totalPaid > net pero totalPaid < precio lista,
+                // deja el saldo en 0 aunque exista saldo a favor real (caso Miranda
+                // Moure / liberado 632.500 → a favor 158.125).
+                $saldo = round(($abono + $scholarship + $aporteAmount + $released) - $price, 2);
 
                 // Cuotas pagadas y totales — heurística por capas:
                 // 1. Si existe una ProgramSubscription ACTIVA → usar su installment_plan

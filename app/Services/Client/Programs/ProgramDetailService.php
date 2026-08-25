@@ -76,9 +76,15 @@ class ProgramDetailService
                 if ($participantProgram && $participantProgram->discounts) {
                     foreach ($participantProgram->discounts as $discount) {
                         if ($discount->discount_type === 'released') {
-                            // Liberado usa el porcentaje almacenado (puede ser cualquier %)
-                            $discountPercent = $discount->percent ?? 100;
-                            $participantDiscounts += ($basePrice * $discountPercent / 100);
+                            // Liberado: si hay amount fijo se usa; sino aplica percent (default 100%).
+                            // Antes ignoraba `amount` y forzaba 100% cuando percent era NULL, dejando
+                            // el saldo en 0 y mostrando "Pago Completo" con deuda pendiente.
+                            if (!empty($discount->amount)) {
+                                $participantDiscounts += (float) $discount->amount;
+                            } else {
+                                $discountPercent = $discount->percent ?? 100;
+                                $participantDiscounts += ($basePrice * $discountPercent / 100);
+                            }
                         } elseif ($discount->percent) {
                             $participantDiscounts += ($basePrice * $discount->percent / 100);
                         } elseif ($discount->amount) {
@@ -93,35 +99,20 @@ class ProgramDetailService
                 $participantAdjustments = $adjustments;
                 $participantTotalAmount = $finalPrice;
 
-                // Calcular monto pagado desde las cuotas del installment_plan (suscripciones)
-                $paidAmount = 0.0;
-                $installmentPlans = InstallmentPlan::where('participant_id', $participant->id)
-                    ->where('program_id', $programCourse->id)
-                    ->with(['installments'])
-                    ->get();
-
-                foreach ($installmentPlans as $plan) {
-                    foreach ($plan->installments as $installment) {
-                        // Sumar solo cuotas realmente pagadas (usar status = 'paid' como fuente de verdad)
-                        if ($installment->status === 'paid') {
-                            $paidAmount += (float) $installment->amount;
-                        }
-                    }
-                }
-
-                // SIEMPRE sumar pagos de orders (presenciales, pagos totales, etc.) excluyendo suscripciones
-                // Esto incluye pagos presenciales que no crean installment plans
-                $orderPayments = (float) Payment::whereHas('order', function ($q) use ($participant, $programCourse) {
+                // Fuente de verdad: SUM de TODOS los payments (incluye SUB-% / PAT, NC y CT).
+                // Antes se usaba un híbrido (cuotas status=paid + payments no-SUB) que
+                // fallaba cuando un sync marcaba cuotas pagadas como cancelled tras baja
+                // de suscripción: los B2 PAT se excluían, las NC seguían restando y el
+                // "Pagarás" del PAT se inflaba (ej. 1.401.133 en vez de 1.042.329).
+                // CT (Crédito Temporal) SÍ cuenta como abono: la contabilidad de
+                // Latitud90 lo trata como pago hecho (Precio - CT - Liberado = Saldo).
+                $paidAmount = round((float) Payment::whereHas('order', function ($q) use ($participant, $programCourse) {
                         $q->where('participant_id', $participant->id)
-                          ->where('program_id', $programCourse->id)
-                          ->where('order_number', 'NOT LIKE', 'SUB-%'); // Excluir órdenes de suscripción
+                          ->where('program_id', $programCourse->id);
                     })
                     ->whereIn('status', ['approved', 'completed'])
-                    ->sum('amount');
+                    ->sum('amount'), 2);
 
-                $paidAmount += $orderPayments;
-
-                $paidAmount = round($paidAmount, 2);
                 $participantBalance = max(round($participantTotalAmount - $paidAmount, 2), 0);
                 $paymentPercentage = $participantTotalAmount > 0
                     ? round(($paidAmount / $participantTotalAmount) * 100, 2)
@@ -150,22 +141,32 @@ class ProgramDetailService
             }
         }
 
-        // Buscar plan de cuotas activo usando la nueva arquitectura
+        // Bloquear en "cuota PAT" SOLO si hay suscripción ACTIVA/SUSCRIBIENDO.
+        // Si el PAT fue cancelado pero el installment_plan quedó status=active
+        // (inconsistencia frecuente), el portal no debe ocultar débito/crédito:
+        // caso 233889407-V0038 — badge "Suscripción Cancelada" pero solo VirtualPos.
         $activeInstallment = null;
         $paymentPlanLocked = false;
-        if ($participant) {
-            $installmentPlan = InstallmentPlan::where('participant_id', $participant->id)
-                ->where('program_id', $programCourse->id) // program_id ahora apunta a program_courses
-                ->where('status', 'active')
-                ->first();
+        if ($participant && $hasActiveSubscription) {
+            $installmentPlanQuery = InstallmentPlan::where('participant_id', $participant->id)
+                ->where('program_id', $programCourse->id)
+                ->where('status', 'active');
+
+            if (!empty($activeSubscription['id'])) {
+                $subscriptionId = $activeSubscription['id'];
+                $installmentPlanQuery->where(function ($q) use ($subscriptionId) {
+                    $q->where('program_subscription_id', $subscriptionId)
+                      ->orWhereNull('program_subscription_id');
+                });
+            }
+
+            $installmentPlan = $installmentPlanQuery->orderByDesc('id')->first();
 
             if ($installmentPlan) {
-                // Verificar si hay cuotas pagadas
                 $paidInstallments = $installmentPlan->installments()->where('status', 'paid')->count();
                 $paymentPlanLocked = $paidInstallments > 0;
 
                 if ($paymentPlanLocked) {
-                    // Obtener la próxima cuota pendiente
                     $nextInstallment = $installmentPlan->installments()
                         ->where('status', 'pending')
                         ->orderBy('due_date')

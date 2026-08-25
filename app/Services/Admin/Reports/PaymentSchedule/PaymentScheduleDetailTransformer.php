@@ -186,11 +186,12 @@ class PaymentScheduleDetailTransformer
 
             foreach ($discounts as $discount) {
                 if ($discount->discount_type === 'released') {
-                    if ($discount->percent == 100) {
+                    // Liberado: percent (aplicado sobre basePrice) o amount fijo.
+                    if ($discount->percent) {
                         $basePrice = $this->getBasePrice($participantId, $programCourseId);
-                        $releasedAmount += $basePrice;
-                    } else {
-                        $releasedAmount += (float) ($discount->amount ?? 0);
+                        $releasedAmount += ($basePrice * (float) $discount->percent / 100);
+                    } elseif ($discount->amount) {
+                        $releasedAmount += (float) $discount->amount;
                     }
                 } else {
                     if ($discount->percent && $discount->percent > 0) {

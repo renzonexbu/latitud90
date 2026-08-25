@@ -63,8 +63,8 @@ class FrequentClientController extends Controller
             'phone_code' => 'required|string|max:10',
             'phone' => 'required|string|max:20',
             'country_id' => 'required|integer|exists:countries,id',
-            'region_id' => 'required|integer|exists:regions,id',
-            'comune_id' => 'required|integer|exists:comunes,id',
+            'region_id' => 'nullable|integer|exists:regions,id',
+            'comune_id' => 'nullable|integer|exists:comunes,id',
             'terms_accepted' => 'required|boolean',
             'marketing_accepted' => 'required|boolean',
         ]);

@@ -62,8 +62,7 @@ class GeneratePaymentController extends Controller
 
         $paymentData = $this->generatePaymentService->getPaymentDetails($programId, $request->user()->id ?? null, $document);
 
-        // Obtener países
-        $countries = Country::where('name', 'Chile')->get();
+        $countries = Country::forSelect();
 
         // Obtener regiones y comunas
         $regions = Region::with('comunes')->get();

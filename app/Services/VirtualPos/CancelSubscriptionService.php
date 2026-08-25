@@ -59,19 +59,27 @@ class CancelSubscriptionService
                     'api_response' => $data,
                 ]);
 
-                // Cancelar el plan de cuotas (cargar manualmente)
-                $installmentPlan = \App\Models\InstallmentPlan::where('participant_id', $subscription->participant_id)
+                // Cancelar planes de cuotas vinculados a esta suscripción (o activos
+                // del mismo participante/programa). Evita dejar un plan "active" que
+                // bloquee el portal en solo "Suscripción VirtualPos" tras la baja.
+                $installmentPlans = \App\Models\InstallmentPlan::where('participant_id', $subscription->participant_id)
                     ->where('program_id', $subscription->program_id)
-                    ->first();
+                    ->where(function ($q) use ($subscription) {
+                        $q->where('program_subscription_id', $subscription->id)
+                          ->orWhere(function ($q2) {
+                              $q2->where('status', 'active')
+                                 ->whereNull('program_subscription_id');
+                          });
+                    })
+                    ->get();
 
-                if ($installmentPlan) {
+                foreach ($installmentPlans as $installmentPlan) {
                     $installmentPlan->update([
                         'status' => 'cancelled',
                     ]);
 
-                    // Cancelar las cuotas pendientes
                     $installmentPlan->installments()
-                        ->where('status', 'pending')
+                        ->whereIn('status', ['pending', 'overdue'])
                         ->update(['status' => 'cancelled']);
                 }
 

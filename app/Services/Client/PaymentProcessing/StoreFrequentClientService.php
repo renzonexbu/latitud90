@@ -25,9 +25,9 @@ class StoreFrequentClientService
                 'email' => $formData['email'] ?? '',
                 'phone_code' => $formData['code_phone'] ?? '+56',
                 'phone' => $formData['phone'] ?? '',
-                'country_id' => $formData['countryId'] ?? '',
-                'region_id' => $formData['regionId'] ?? '',
-                'comune_id' => $formData['cityId'] ?? '',
+                'country_id' => $formData['countryId'] ?? null,
+                'region_id' => !empty($formData['regionId']) ? $formData['regionId'] : null,
+                'comune_id' => !empty($formData['cityId']) ? $formData['cityId'] : null,
                 'terms_accepted' => $formData['termsAccepted'] ?? false,
                 'marketing_accepted' => $formData['marketingAccepted'] ?? false,
             ];

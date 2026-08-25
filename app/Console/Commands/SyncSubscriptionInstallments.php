@@ -80,6 +80,17 @@ class SyncSubscriptionInstallments extends Command
                 $newStatus = $charge['status'] === 'pagado' ? 'paid' : 'pending';
                 $newIsPaid = $charge['status'] === 'pagado';
 
+                // No degradar cuotas con pago local (payment_id / paid) si VP ya no dice "pagado"
+                // (p. ej. suscripción cancelada y charge_program marcado cancelado/pendiente).
+                $hasLocalPayment = $installment->is_paid
+                    || $installment->payment_id
+                    || $installment->status === 'paid';
+
+                if ($hasLocalPayment && $newStatus !== 'paid') {
+                    $this->line("   ⏭ Cuota #{$installment->installment_number}: se mantiene paid (tiene pago local)");
+                    continue;
+                }
+
                 if ($currentStatus !== $newStatus || $currentIsPaid !== $newIsPaid) {
                     // Actualizar la cuota
                     $installment->update([

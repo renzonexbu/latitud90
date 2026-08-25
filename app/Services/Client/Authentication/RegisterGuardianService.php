@@ -52,8 +52,8 @@ class RegisterGuardianService
                 'phone_code' => $data['phone_code'],
                 'phone' => $data['phone'],
                 'country_id' => $data['country_id'],
-                'region_id' => $data['region_id'],
-                'comune_id' => $data['comune_id'],
+                'region_id' => !empty($data['region_id']) ? $data['region_id'] : null,
+                'comune_id' => !empty($data['comune_id']) ? $data['comune_id'] : null,
                 'password' => Hash::make($data['password']),
                 'status' => 'active', // Activo desde el registro
                 'email_verified_at' => null, // Se verifica después por email

@@ -98,9 +98,13 @@ class ProgramService
                 if ($participantProgram && $participantProgram->discounts) {
                     foreach ($participantProgram->discounts as $discount) {
                         if ($discount->discount_type === 'released') {
-                            // Liberado usa el porcentaje almacenado (puede ser cualquier %)
-                            $discountPercent = $discount->percent ?? 100;
-                            $discounts += ($basePrice * $discountPercent / 100);
+                            // Liberado: si hay amount fijo se usa; sino aplica percent (default 100%).
+                            if (!empty($discount->amount)) {
+                                $discounts += (float) $discount->amount;
+                            } else {
+                                $discountPercent = $discount->percent ?? 100;
+                                $discounts += ($basePrice * $discountPercent / 100);
+                            }
                         } elseif ($discount->percent) {
                             $discounts += ($basePrice * $discount->percent / 100);
                         } elseif ($discount->amount) {
@@ -120,6 +124,8 @@ class ProgramService
                 // IMPORTANTE: Calcular monto pagado directamente desde la tabla payments
                 // Esto asegura que funcione tanto para suscripciones como para pagos totales
                 // NOTA: La tabla orders guarda program_id como el ID del ProgramCourse, no del Program template
+                // CT (Crédito Temporal) SÍ cuenta como abono: la contabilidad de Latitud90
+                // lo trata como pago hecho (Precio - CT - Liberado = Saldo).
                 $paidAmountFromPayments = Payment::whereHas('order', function ($q) use ($participant, $programCourse) {
                         $q->where('participant_id', $participant->id)
                           ->where('program_id', $programCourse->id); // Usar programCourse->id, no program->id

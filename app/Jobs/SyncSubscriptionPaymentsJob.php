@@ -445,21 +445,16 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
             return;
         }
 
-        // Cancelar TODAS las cuotas de este plan de suscripción fallida
-        // Incluye cuotas sin payment_id Y cuotas cuyo payment_id pertenece a otra orden
-        // (caso: pago por tarjeta se vinculó erróneamente a cuota de suscripción)
-        $subscriptionOrderId = $subscription->order?->id;
-
+        // Nunca tocar cuotas con cobro real (payment_id / paid).
+        // Solo limpiar pendientes u "huérfanas" sin pago local.
         $updated = $installmentPlan->installments()
             ->where('status', '!=', 'cancelled')
-            ->where(function ($q) use ($subscriptionOrderId) {
-                // Cuotas sin pago real
-                $q->whereNull('payment_id')
-                  // O cuotas cuyo pago NO pertenece a la orden de la suscripción
-                  // (el payment_id fue asignado por un pago de otra orden/tarjeta)
-                  ->orWhereHas('payment', function ($pq) use ($subscriptionOrderId) {
-                      $pq->where('order_id', '!=', $subscriptionOrderId);
-                  });
+            ->where(function ($q) {
+                $q->where('status', '!=', 'paid')
+                  ->where(function ($q2) {
+                      $q2->whereNull('is_paid')->orWhere('is_paid', false);
+                  })
+                  ->whereNull('payment_id');
             })
             ->update([
                 'status' => 'cancelled',

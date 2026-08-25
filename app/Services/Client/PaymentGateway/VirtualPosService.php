@@ -42,6 +42,13 @@ class VirtualPosService
             $configKey = $this->getConfigKey($paymentType, $installments);
             $config = $this->config[$configKey] ?? $this->config['no_cuotes'];
 
+            $this->logInfo('VirtualPOS createTransaction config selected', [
+                'payment_type' => $paymentType,
+                'installments' => $installments,
+                'config_key' => $configKey,
+                'commerce_code' => $config['commerce_code'] ?? null,
+            ]);
+
             // Validar datos obligatorios del comprador para evitar pagos con datos genéricos
             // que luego BSale rechaza al emitir boleta
             if (empty(trim($customerEmail ?? ''))) {
@@ -138,7 +145,7 @@ class VirtualPosService
 
                     // Si tenemos UUID, obtener la URL de checkout
                     if ($paymentUuid) {
-                        $checkoutUrl = $this->getCheckoutUrl($paymentUuid, $config, $returnUrl, $callbackUrl);
+                        $checkoutUrl = $this->getCheckoutUrl($paymentUuid, $config, $returnUrl, $callbackUrl, $configKey);
                         return [
                             'success' => true,
                             'payment_id' => $paymentUuid,
@@ -435,22 +442,23 @@ class VirtualPosService
     }
 
     /**
-     * Determinar la clave de configuración según tipo de pago y cuotas
+     * Determinar la clave de configuración según tipo de pago y cuotas.
+     * Internacional debe evaluarse ANTES que "sin cuotas": el link VPI
+     * casi siempre va con 1 cuota y, si no, caía en no_cuotes (débito/crédito).
      */
     private function getConfigKey($paymentType, $installments)
     {
-        // Si es débito o sin cuotas
-        if ($paymentType === 'debit' || !$installments || $installments <= 1) {
-            return 'no_cuotes';
-        }
+        $type = strtolower((string) $paymentType);
 
-        // Si es pago internacional
-        if ($paymentType === 'international') {
+        if ($type === 'international') {
             return 'international';
         }
 
-        // Si es crédito con cuotas específicas
-        switch ($installments) {
+        if ($type === 'debit' || !$installments || $installments <= 1) {
+            return 'no_cuotes';
+        }
+
+        switch ((int) $installments) {
             case 3:
                 return '3_cuotes';
             case 6:
@@ -495,7 +503,7 @@ class VirtualPosService
     /**
      * Obtener URL de checkout para VirtualPOS
      */
-    private function getCheckoutUrl($paymentUuid, $config, $returnUrl, $callbackUrl = null)
+    private function getCheckoutUrl($paymentUuid, $config, $returnUrl, $callbackUrl = null, string $configKey = 'no_cuotes')
     {
         try {
             // Generar firma JWT para la consulta
@@ -505,11 +513,25 @@ class VirtualPosService
                 'Authorization' => $config['api_key'],
                 'Signature' => $signature
             ];
+
+            // El comercio internacional no tiene Webpay nacional contratado.
+            // Enviar payment_method=webpay provoca:
+            // "el valor informado no esta disponible como medio de pago para su comercio"
+            // "all" abre el checkout con los medios contratados de ese comercio.
+            $paymentMethod = $configKey === 'international' ? 'all' : 'webpay';
+
             $payload = [
                 'return_url' => base64_encode($returnUrl),
                 'callback_url' => base64_encode($callbackUrl ?: $returnUrl),
-                'payment_method' => 'webpay'
+                'payment_method' => $paymentMethod,
             ];
+
+            $this->logInfo('VirtualPOS getCheckoutUrl request', [
+                'payment_uuid' => $paymentUuid,
+                'config_key' => $configKey,
+                'payment_method' => $paymentMethod,
+                'commerce_code' => $config['commerce_code'] ?? null,
+            ]);
 
             $response = $this->client->post($this->baseUrl . "/payment/{$paymentUuid}/webcheckout", [
                 'headers' => $headers,

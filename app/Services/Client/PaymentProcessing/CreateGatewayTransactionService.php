@@ -105,8 +105,16 @@ class CreateGatewayTransactionService
             case 'debit':
             case 'credit':
             case 'international':
-                $paymentType = $paymentData['paymentType'] ?? null;
+                // paymentType del formulario es "total/monthly"; VirtualPos necesita
+                // el medio (debit/credit/international) para elegir API KEY / comercio.
+                $paymentType = $normalizedMethod;
                 $installments = $installmentsOverride ?? ($paymentData['installments'] ?? null);
+
+                $this->logInfo('=== CreateGatewayTransactionService: VirtualPos config input ===', [
+                    'normalized_method' => $normalizedMethod,
+                    'payment_type_sent' => $paymentType,
+                    'installments' => $installments,
+                ]);
 
                 // Verificar flag para usar VirtualPOS (producción) o Transbank (pruebas)
                 $useVirtualPos = config('lat90.payment.use_virtualpos', true);
