@@ -322,8 +322,23 @@ class SubscriptionRecalculationService
             // CancelSubscriptionService). Sin esto el installment_plan queda
             // 'active' y el checkout del programa lockea al participante en PAT
             // sin dejar elegir otra modalidad (bug reportado con Josefa Campos).
-            $installmentPlan = \App\Models\InstallmentPlan::where('participant_id', $subscription->participant_id)
-                ->where('program_id', $subscription->program_id)
+            // Acotado a ESTA suscripción: buscar por participant_id + program_id con
+            // ->first() podía devolver el plan de otra suscripción del mismo programa
+            // (los reintentos crean un plan nuevo cada vez) y cancelarlo por error.
+            $orderIds = \App\Models\Order::where('subscription_id', $subscription->id)
+                ->pluck('id');
+
+            $installmentPlan = \App\Models\InstallmentPlan::where(function ($q) use ($subscription, $orderIds) {
+                    $q->where('program_subscription_id', $subscription->id);
+
+                    if ($orderIds->isNotEmpty()) {
+                        $q->orWhere(function ($legacy) use ($orderIds) {
+                            $legacy->whereNull('program_subscription_id')
+                                ->whereIn('order_id', $orderIds);
+                        });
+                    }
+                })
+                ->orderByDesc('id')
                 ->first();
 
             if ($installmentPlan) {

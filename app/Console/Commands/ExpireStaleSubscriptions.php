@@ -44,11 +44,28 @@ class ExpireStaleSubscriptions extends Command
                     ->where('status', 'pending')
                     ->update(['status' => 'cancelled', 'updated_at' => now()]);
 
-                // Cancelar installment plan activo
+                // Cancelar SOLO el plan de cuotas de ESTA suscripción.
+                // Antes filtraba por participant_id + program_id: con dos intentos de
+                // suscripción (el primero queda atascado, el segundo alcanza a cobrar),
+                // expirar el primero cancelaba también el plan y las cuotas pendientes
+                // del segundo — que sigue ACTIVA y con el cargo vivo en VirtualPos.
+                // Los planes legacy sin program_subscription_id se enlazan por la orden.
+                $orderIds = DB::table('orders')
+                    ->where('subscription_id', $subscription->id)
+                    ->pluck('id');
+
                 $planIds = DB::table('installment_plans')
-                    ->where('participant_id', $subscription->participant_id)
-                    ->where('program_id', $subscription->program_id)
                     ->where('status', 'active')
+                    ->where(function ($q) use ($subscription, $orderIds) {
+                        $q->where('program_subscription_id', $subscription->id);
+
+                        if ($orderIds->isNotEmpty()) {
+                            $q->orWhere(function ($legacy) use ($orderIds) {
+                                $legacy->whereNull('program_subscription_id')
+                                    ->whereIn('order_id', $orderIds);
+                            });
+                        }
+                    })
                     ->pluck('id');
 
                 if ($planIds->isNotEmpty()) {

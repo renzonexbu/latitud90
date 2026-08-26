@@ -205,9 +205,44 @@ class SyncSubscriptionService
             'program_id' => $subscription->program_id,
         ]);
 
-        $installmentPlan = InstallmentPlan::where('participant_id', $subscription->participant_id)
-            ->where('program_id', $subscription->program_id)
+        // Buscar el plan de ESTA suscripción. Antes se buscaba por participant_id +
+        // program_id con ->first(): como cada reintento de suscripción crea un plan
+        // nuevo (hay participantes con más de 10), escribía los charge_id de esta
+        // suscripción sobre el plan de otra.
+        $orderIds = \App\Models\Order::where('subscription_id', $subscription->id)->pluck('id');
+
+        $installmentPlan = InstallmentPlan::where(function ($q) use ($subscription, $orderIds) {
+                $q->where('program_subscription_id', $subscription->id);
+
+                if ($orderIds->isNotEmpty()) {
+                    $q->orWhere(function ($legacy) use ($orderIds) {
+                        $legacy->whereNull('program_subscription_id')
+                            ->whereIn('order_id', $orderIds);
+                    });
+                }
+            })
+            ->orderByDesc('id')
             ->first();
+
+        // Fallback para datos antiguos sin vínculo: solo si NO hay ambigüedad.
+        // Con varios planes en el mismo programa preferimos no sincronizar antes
+        // que escribir sobre el plan equivocado.
+        if (!$installmentPlan) {
+            $legacyPlans = InstallmentPlan::where('participant_id', $subscription->participant_id)
+                ->where('program_id', $subscription->program_id)
+                ->get();
+
+            if ($legacyPlans->count() === 1) {
+                $installmentPlan = $legacyPlans->first();
+            } elseif ($legacyPlans->count() > 1) {
+                Log::channel('daily')->warning('SYNC: Varios planes sin vínculo a la suscripción, no se sincroniza para no pisar el equivocado', [
+                    'subscription_id' => $subscription->id,
+                    'participant_id' => $subscription->participant_id,
+                    'program_id' => $subscription->program_id,
+                    'plan_ids' => $legacyPlans->pluck('id')->all(),
+                ]);
+            }
+        }
 
         if (!$installmentPlan) {
             Log::channel('daily')->warning('SYNC: No se encontró plan de cuotas para sincronizar', [
@@ -226,6 +261,7 @@ class SyncSubscriptionService
         $syncedCount = 0;
         $additionalCharges = [];
         $pendingPayments = []; // Pagos en VirtualPOS sin Payment local
+        $restoredAny = false;  // Alguna cuota volvió de 'cancelled' a 'pending'
 
         foreach ($chargeProgram as $index => $charge) {
             $chargeId = $charge['id'] ?? null;
@@ -314,6 +350,23 @@ class SyncSubscriptionService
                 ]);
             }
 
+            // Reverso simétrico de la regla anterior: si VirtualPos mantiene el cargo
+            // vivo (pendiente/procesando) pero la cuota local está cancelada y sin
+            // cobro, devolverla a 'pending'. Sin esto una cancelación errónea dejaba
+            // la cuota muerta para siempre: VirtualPos la cobraba y el sistema no
+            // actualizaba el estado ni emitía la boleta hasta refrescar a mano.
+            $isAlive = in_array(strtolower($chargeStatus), ['pendiente', 'pending', 'procesando', 'processing']);
+
+            if ($isAlive && $installment->status === 'cancelled' && !$hasLocalPayment) {
+                $updateData['status'] = 'pending';
+                $restoredAny = true;
+                Log::channel('daily')->warning("SYNC: Cuota #{$chargeNumber} RESTAURADA a pendiente (cargo vivo en VirtualPos)", [
+                    'installment_id' => $installment->id,
+                    'charge_id' => $chargeId,
+                    'charge_status' => $chargeStatus,
+                ]);
+            }
+
             // Si está pagado en VirtualPOS pero no localmente, verificar si existe Payment
             if ($isPaid && !$installment->is_paid) {
                 // Verificar si ya existe un Payment con este charge_id
@@ -336,11 +389,23 @@ class SyncSubscriptionService
             $syncedCount++;
         }
 
+        // Un plan cancelado con cuotas vivas en VirtualPos es inconsistente: si se
+        // restauró alguna cuota, el plan tiene que volver a 'active' o el portal
+        // sigue tratando al participante como si no tuviera plan de cuotas.
+        if ($restoredAny && $installmentPlan->status === 'cancelled') {
+            $installmentPlan->update(['status' => 'active']);
+            Log::channel('daily')->warning('SYNC: Plan de cuotas REACTIVADO (tenía cuotas vivas en VirtualPos)', [
+                'installment_plan_id' => $installmentPlan->id,
+                'subscription_id' => $subscription->id,
+            ]);
+        }
+
         Log::channel('daily')->info('SYNC: Sincronización de cuotas completada', [
             'total_charges_processed' => count($chargeProgram),
             'installments_synced' => $syncedCount,
             'additional_charges_count' => count($additionalCharges),
             'pending_payments_count' => count($pendingPayments),
+            'installments_restored' => $restoredAny,
         ]);
 
         return ['synced' => $syncedCount, 'additional_charges' => $additionalCharges, 'pending_payments' => $pendingPayments];
