@@ -102,6 +102,22 @@ class BsaleQueueService
             return null;
         }
 
+        // VALIDACIÓN 5.6: Los anticipos (AC) NUNCA generan boleta.
+        // El documento del anticipo es el Comprobante de Anticipo. Cuando un AC
+        // debe pasar a boleta, la conversión AC→Boleta crea un pago B2 aparte y
+        // ESE es el que se encola (ver la excepción de la VALIDACIÓN 5).
+        // Sin este guardia, el cron de emails volvía a encolar el AC original —ya
+        // reversado por RA— y emitía una segunda boleta por el mismo ingreso.
+        // Caso 229393405-V0151: participante 2026 colado en un lote de 2027; el
+        // helper veía mismo año y respondía "corresponde boleta" (Carmen 2026-08-28).
+        if ($payment->document_type === 'AC') {
+            Log::channel('bsale')->info('BsaleQueueService: Anticipo (AC) no genera boleta BSale', [
+                'payment_id' => $payment->id,
+                'document_type' => $payment->document_type,
+            ]);
+            return null;
+        }
+
         // VALIDACIÓN 6: Verificar flags específicos (suscripción vs total)
         $order = $orderDetail?->order;
         if ($order) {
