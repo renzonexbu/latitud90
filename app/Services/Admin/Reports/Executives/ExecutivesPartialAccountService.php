@@ -216,6 +216,21 @@ class ExecutivesPartialAccountService
                         ->first();
                 }
 
+                // Estado PAT para la columna del reporte (Carmen 2026-08-28): permite
+                // detectar suscriptores con PAT cancelado, que no se reportaban en
+                // ninguna parte y complicaban la revisión de morosos.
+                // Un participante puede tener varias suscripciones en el mismo programa
+                // (cada reintento crea una nueva), así que se prioriza la vigente y,
+                // si no hay ninguna, se muestra la más reciente.
+                $patSubscription = $activeSubscription
+                    ?: \App\Models\ProgramSubscription::where('participant_id', $row->participant_id)
+                        ->where('program_id', $rowProgramCourseId)
+                        ->orderByRaw("CASE WHEN status = 'SUSCRIBIENDO' THEN 0 ELSE 1 END")
+                        ->orderByDesc('id')
+                        ->first();
+
+                $patStatus = $this->formatPatStatus($patSubscription?->status);
+
                 // Capa 2: si no hay suscripción ACTIVA con plan, buscar plan no cancelado por orders
                 if (!$activePlan && !empty($orderIds)) {
                     $activePlan = \App\Models\InstallmentPlan::whereIn('order_id', $orderIds)
@@ -287,6 +302,7 @@ class ExecutivesPartialAccountService
                     'paid_installments' => $paidInstallments,
                     'total_installments' => $totalInstallments,
                     'payment_method' => $paymentMethod,
+                    'pat_status' => $patStatus,
                     'scholarship' => $scholarship + $aporteAmount,
                     'released' => $released,
                     'balance' => $saldo,
@@ -314,6 +330,26 @@ class ExecutivesPartialAccountService
             ],
             'programs' => \App\Models\ProgramCourse::select('id', 'code', 'name')->where('active', true)->orderBy('code')->get(),
         ];
+    }
+
+    /**
+     * Traduce el estado interno de la suscripción PAT a una etiqueta legible.
+     * Devuelve '—' cuando el participante nunca tuvo suscripción.
+     */
+    private function formatPatStatus(?string $status): string
+    {
+        if (empty($status)) {
+            return '—';
+        }
+
+        return match (strtoupper($status)) {
+            'ACTIVA'               => 'Activa',
+            'SUSCRIBIENDO'         => 'Suscribiendo',
+            'CANCELADA'            => 'Cancelada',
+            'SUSCRIPCION_FALLIDA'  => 'Fallida',
+            'FINALIZADA'           => 'Finalizada',
+            default                => ucfirst(strtolower($status)),
+        };
     }
 
     /**

@@ -355,7 +355,7 @@ class ExportService
         // Nota y fecha
         $note = "Los montos reflejados a continuación son saldos parciales previos al cierre administrativo del programa.\nEste reporte se genera con fines logísticos.";
         $sheet->setCellValue('A7', $note);
-        $sheet->mergeCells('A7:I7');
+        $sheet->mergeCells('A7:J7');
         $sheet->getStyle('A7')->applyFromArray([
             'font' => ['italic' => true, 'bold' => false, 'size' => 14],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT, 'vertical' => Alignment::VERTICAL_CENTER]
@@ -363,9 +363,9 @@ class ExportService
         $sheet->getStyle('A7')->getAlignment()->setWrapText(true);
         // Excel no autoajusta altura en celdas fusionadas; forzamos altura adecuada para dos líneas
         $sheet->getRowDimension(7)->setRowHeight(40);
-        // Fecha en la misma columna que "Por pagar" (I) y 14px
-        $sheet->setCellValue('I8', Carbon::now('America/Santiago')->format('d/m/Y'));
-        $sheet->getStyle('I8')->getFont()->setSize(14)->setBold(false);
+        // Fecha en la misma columna que "Saldo" (J tras insertar PAT en G) y 14px
+        $sheet->setCellValue('J8', Carbon::now('America/Santiago')->format('d/m/Y'));
+        $sheet->getStyle('J8')->getFont()->setSize(14)->setBold(false);
 
         // Cabecera de tabla en A10
             $headers = [
@@ -375,15 +375,16 @@ class ExportService
             'D10' => 'Abono',
             'E10' => "Cuotas\nPagadas",
             'F10' => "Forma de\nPago",
-            'G10' => 'Aporte/Beca',
-            'H10' => 'Monto Liberado',
-            'I10' => 'Saldo',
+            'G10' => 'PAT',
+            'H10' => 'Aporte/Beca',
+            'I10' => 'Monto Liberado',
+            'J10' => 'Saldo',
         ];
         foreach ($headers as $cell => $label) {
             $sheet->setCellValue($cell, $label);
         }
-        $this->styleHeader($sheet, 'A10:I10');
-        $sheet->setAutoFilter('A10:I10');
+        $this->styleHeader($sheet, 'A10:J10');
+        $sheet->setAutoFilter('A10:J10');
 
         // Configurar altura de fila para headers con salto de línea
         $sheet->getRowDimension(10)->setRowHeight(40);
@@ -395,9 +396,10 @@ class ExportService
         $sheet->getColumnDimension('D')->setWidth(12); // Abono
         $sheet->getColumnDimension('E')->setWidth(14); // Cuotas Pagadas
         $sheet->getColumnDimension('F')->setWidth(16); // Forma de Pago
-        $sheet->getColumnDimension('G')->setWidth(14); // Aporte/Beca
-        $sheet->getColumnDimension('H')->setWidth(14); // Monto Liberado
-        $sheet->getColumnDimension('I')->setWidth(12); // Saldo
+        $sheet->getColumnDimension('G')->setWidth(13); // PAT (estado suscripción)
+        $sheet->getColumnDimension('H')->setWidth(14); // Aporte/Beca
+        $sheet->getColumnDimension('I')->setWidth(14); // Monto Liberado
+        $sheet->getColumnDimension('J')->setWidth(12); // Saldo
 
         // ========================
         // Datos dinámicos por participante (A11 en adelante)
@@ -664,6 +666,16 @@ class ExportService
             // Estado del participante en el programa
             $participantStatus = $pp->is_active ? 'Activo' : 'De Baja';
 
+            // Estado de la suscripción PAT (Carmen 2026-08-28). Se prioriza la
+            // vigente (ACTIVA/SUSCRIBIENDO) y, si no hay, la más reciente — que es
+            // la que revela los PAT caídos en la revisión de morosos.
+            $patSubscription = \App\Models\ProgramSubscription::where('participant_id', $pp->participant_id)
+                ->where('program_id', $pp->program_id)
+                ->orderByRaw("CASE WHEN status = 'ACTIVA' THEN 0 WHEN status = 'SUSCRIBIENDO' THEN 1 ELSE 2 END")
+                ->orderByDesc('id')
+                ->first();
+            $patStatus = $this->formatPatStatus($patSubscription?->status);
+
             // Escribir fila
             $sheet->setCellValue('A' . $row, $participantName);
             $sheet->setCellValue('B' . $row, $participantStatus);
@@ -671,20 +683,21 @@ class ExportService
             $sheet->setCellValue('D' . $row, $abono);
             $sheet->setCellValue('E' . $row, $paidInstallments . '/' . ($totalInstallments ?: 0));
             $sheet->setCellValue('F' . $row, $paymentMethod);
-            $sheet->setCellValue('G' . $row, $scholarship);
-            $sheet->setCellValue('H' . $row, $released);
-            $sheet->setCellValue('I' . $row, $saldo);
+            $sheet->setCellValue('G' . $row, $patStatus);
+            $sheet->setCellValue('H' . $row, $scholarship);
+            $sheet->setCellValue('I' . $row, $released);
+            $sheet->setCellValue('J' . $row, $saldo);
 
             // Aplicar formato de moneda a las columnas numéricas
-            foreach (['C','D','G','H'] as $col) {
+            foreach (['C','D','H','I'] as $col) {
                 $sheet->getStyle($col . $row)->getNumberFormat()->setFormatCode('#,##0');
             }
             // Saldo: paréntesis para negativos
-            $sheet->getStyle('I' . $row)->getNumberFormat()->setFormatCode('#,##0;(#,##0)');
+            $sheet->getStyle('J' . $row)->getNumberFormat()->setFormatCode('#,##0;(#,##0)');
 
-            // Centrar contenido en columnas B, E, F (Estado, Cuotas Pagadas, Forma de Pago)
+            // Centrar contenido en columnas B, E, F, G (Estado, Cuotas, Forma de Pago, PAT)
             $sheet->getStyle('B' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-            $sheet->getStyle('E' . $row . ':F' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('E' . $row . ':G' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
             $totals['price'] += $displayPrice;
             $totals['abono'] += $abono;
@@ -699,14 +712,14 @@ class ExportService
         $sheet->setCellValue('A' . $row, 'Total General');
         $sheet->setCellValue('C' . $row, $totals['price']);
         $sheet->setCellValue('D' . $row, $totals['abono']);
-        $sheet->setCellValue('G' . $row, $totals['scholarship']);
-        $sheet->setCellValue('H' . $row, $totals['released']);
-        $sheet->setCellValue('I' . $row, $totals['por_pagar']);
-        foreach (['C','D','G','H'] as $col) {
+        $sheet->setCellValue('H' . $row, $totals['scholarship']);
+        $sheet->setCellValue('I' . $row, $totals['released']);
+        $sheet->setCellValue('J' . $row, $totals['por_pagar']);
+        foreach (['C','D','H','I'] as $col) {
             $sheet->getStyle($col . $row)->getNumberFormat()->setFormatCode('#,##0');
         }
-        $sheet->getStyle('I' . $row)->getNumberFormat()->setFormatCode('#,##0;(#,##0)');
-        $sheet->getStyle('A' . $row . ':I' . $row)->applyFromArray([
+        $sheet->getStyle('J' . $row)->getNumberFormat()->setFormatCode('#,##0;(#,##0)');
+        $sheet->getStyle('A' . $row . ':J' . $row)->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1C4F4A']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT, 'vertical' => Alignment::VERTICAL_CENTER]
@@ -873,6 +886,27 @@ class ExportService
     /**
      * Mapea códigos de forma de pago a nombres descriptivos
      */
+    /**
+     * Traduce el estado interno de la suscripción PAT a una etiqueta legible.
+     * Debe coincidir con ExecutivesPartialAccountService::formatPatStatus()
+     * para que la pantalla y el Excel muestren lo mismo.
+     */
+    private function formatPatStatus(?string $status): string
+    {
+        if (empty($status)) {
+            return '—';
+        }
+
+        return match (strtoupper($status)) {
+            'ACTIVA'               => 'Activa',
+            'SUSCRIBIENDO'         => 'Suscribiendo',
+            'CANCELADA'            => 'Cancelada',
+            'SUSCRIPCION_FALLIDA'  => 'Fallida',
+            'FINALIZADA'           => 'Finalizada',
+            default                => ucfirst(strtolower($status)),
+        };
+    }
+
     private function mapPaymentMethodCode(string $code): string
     {
         $mapping = [

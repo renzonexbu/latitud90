@@ -10,6 +10,7 @@
                         <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">Abono</th>
                         <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">Cuotas Pagadas</th>
                         <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">Forma Pago</th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">PAT</th>
                         <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">Aporte/Beca</th>
                         <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">Liberado</th>
                         <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">Saldo</th>
@@ -44,6 +45,16 @@
                         </td>
                         <td class="px-2 py-2 whitespace-nowrap text-center">
                             <div class="text-xs text-gray-900">{{ row.payment_method || 'N/A' }}</div>
+                        </td>
+                        <td class="px-2 py-2 whitespace-nowrap text-center">
+                            <span
+                                v-if="row.pat_status && row.pat_status !== '—'"
+                                class="px-2 py-1 text-[10px] font-medium rounded-full"
+                                :class="getPatStatusClass(row.pat_status)"
+                            >
+                                {{ row.pat_status }}
+                            </span>
+                            <span v-else class="text-xs text-gray-400">—</span>
                         </td>
                         <td class="px-2 py-2 whitespace-nowrap text-right">
                             <div class="text-xs font-bold text-blue-600">{{ formatPrice(row.scholarship) }}</div>
@@ -89,6 +100,24 @@ const getBalanceClass = (balance) => {
     if (n > 0) return 'text-green-600';
     if (n < 0) return 'text-red-600';
     return 'text-gray-600';
+};
+
+// Estado de la suscripción PAT: rojo para las que se cayeron (el caso que
+// interesa detectar en la revisión de morosos), verde para las vigentes.
+const getPatStatusClass = (status) => {
+    switch (status) {
+        case 'Activa':
+            return 'bg-green-100 text-green-800';
+        case 'Suscribiendo':
+            return 'bg-yellow-100 text-yellow-800';
+        case 'Cancelada':
+        case 'Fallida':
+            return 'bg-red-100 text-red-800';
+        case 'Finalizada':
+            return 'bg-gray-100 text-gray-800';
+        default:
+            return 'bg-gray-100 text-gray-800';
+    }
 };
 </script>
 
