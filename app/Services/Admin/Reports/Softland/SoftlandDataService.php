@@ -482,8 +482,11 @@ class SoftlandDataService
      *   - codigo_auxiliar: vacío
      *   - nro_documento: fecha en formato DDMMYY (6 dígitos), sin auth code
      *   - tipo/nro doc referencia: vacíos (no aplican para banco)
+     * Ajuste Carmen 2026-08-26: en banco el tipo y el nro de documento van en
+     * las columnas de conciliación (Q y R), dejando las de documento (T y U)
+     * vacías. Solo aplica a 1-1-01-039.
      * Oficina (1-1-02-009): mantiene RUT pagador como auxiliar y auth_code
-     * como nro documento.
+     * como nro documento en T y U.
      */
     private function createPresentialDebitMovement(Payment $payment, string $accountCode): array
     {
@@ -504,8 +507,12 @@ class SoftlandDataService
             'haber' => 0,
             'descripcion_movimiento' => $payerName,
             'codigo_auxiliar' => $codigoAuxiliar,
-            'tipo_documento' => $paymentMethod,
-            'nro_documento' => $nroDocumento,
+            // Banco: tipo y nro de documento van en conciliación (Q y R);
+            // oficina los mantiene en documento (T y U).
+            'tipo_docto_conciliacion' => $isBank ? $paymentMethod : '',
+            'nro_docto_conciliacion' => $isBank ? $nroDocumento : '',
+            'tipo_documento' => $isBank ? '' : $paymentMethod,
+            'nro_documento' => $isBank ? '' : $nroDocumento,
             'fecha_emision_docto' => $this->formatDateDDMMYYYY($paymentDate),
             'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($paymentDate),
             'tipo_docto_referencia' => $isBank ? '' : $paymentMethod,
