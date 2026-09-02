@@ -74,11 +74,14 @@ class FrequentClientService
                 'country_id' => $data['country_id'],
                 'region_id' => !empty($data['region_id']) ? $data['region_id'] : null,
                 'comune_id' => !empty($data['comune_id']) ? $data['comune_id'] : null,
+                // Texto libre del link internacional (ver migración 2026_08_28_120000)
+                'region_text' => $data['region_text'] ?? null,
+                'comune_text' => $data['comune_text'] ?? null,
                 'terms_accepted' => $data['terms_accepted'],
                 'marketing_accepted' => $data['marketing_accepted'],
                 'last_used_at' => now(),
             ]);
-            
+
             return $existingClient;
         } else {
             // Si no existe, crear nuevo con usage_count = 1
@@ -92,6 +95,9 @@ class FrequentClientService
                 'country_id' => $data['country_id'],
                 'region_id' => !empty($data['region_id']) ? $data['region_id'] : null,
                 'comune_id' => !empty($data['comune_id']) ? $data['comune_id'] : null,
+                // Texto libre del link internacional (ver migración 2026_08_28_120000)
+                'region_text' => $data['region_text'] ?? null,
+                'comune_text' => $data['comune_text'] ?? null,
                 'terms_accepted' => $data['terms_accepted'],
                 'marketing_accepted' => $data['marketing_accepted'],
                 'last_used_at' => now(),

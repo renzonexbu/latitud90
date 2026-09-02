@@ -28,6 +28,11 @@ class StoreFrequentClientService
                 'country_id' => $formData['countryId'] ?? null,
                 'region_id' => !empty($formData['regionId']) ? $formData['regionId'] : null,
                 'comune_id' => !empty($formData['cityId']) ? $formData['cityId'] : null,
+                // Link internacional: el pagador escribe región y comuna como texto
+                // libre (no hay ID chileno que aplique). El front manda el texto en
+                // regionName/cityName, los mismos campos que ya usaba para los nombres.
+                'region_text' => !empty($formData['regionId']) ? null : ($formData['regionName'] ?? null),
+                'comune_text' => !empty($formData['cityId']) ? null : ($formData['cityName'] ?? null),
                 'terms_accepted' => $formData['termsAccepted'] ?? false,
                 'marketing_accepted' => $formData['marketingAccepted'] ?? false,
             ];

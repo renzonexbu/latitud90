@@ -188,7 +188,18 @@
                                 >
                                     Número de celular *
                                 </label>
-                                <div class="flex">
+                                <!-- Link internacional: un solo campo libre, para que el
+                                     pagador escriba su número completo con código de país
+                                     sin depender de una lista de países -->
+                                <input
+                                    v-if="isInternationalPayment"
+                                    type="tel"
+                                    maxlength="30"
+                                    placeholder="+49 151 234 5678"
+                                    class="w-full h-[46px] bg-white border border-[#5B5B5B] rounded px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]"
+                                    v-model="formData.phone"
+                                />
+                                <div v-else class="flex">
                                     <select
                                         v-model="formData.code_phone"
                                         class="w-[70px] h-[46px] bg-white border border-[#5B5B5B] rounded-l border-r-0 flex items-center justify-center gap-2 px-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none appearance-none"
@@ -235,7 +246,17 @@
                                     >
                                         Región *
                                     </label>
+                                    <!-- Link internacional: texto libre (no hay regiones fuera de Chile) -->
+                                    <input
+                                        v-if="isInternationalPayment"
+                                        v-model="formData.regionText"
+                                        type="text"
+                                        maxlength="150"
+                                        placeholder="Escribe tu región o estado"
+                                        class="w-full h-[46px] bg-white border border-[#5B5B5B] rounded px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]"
+                                    />
                                     <SearchableSelect
+                                        v-else
                                         :options="regions"
                                         :value="formData.region"
                                         placeholder="Busca y selecciona tu región"
@@ -250,7 +271,17 @@
                                     >
                                         Comuna *
                                     </label>
+                                    <!-- Link internacional: texto libre (no hay comunas fuera de Chile) -->
+                                    <input
+                                        v-if="isInternationalPayment"
+                                        v-model="formData.cityText"
+                                        type="text"
+                                        maxlength="150"
+                                        placeholder="Escribe tu ciudad o comuna"
+                                        class="w-full h-[46px] bg-white border border-[#5B5B5B] rounded px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]"
+                                    />
                                     <SearchableSelect
+                                        v-else
                                         :options="filteredComunes"
                                         :value="formData.city"
                                         placeholder="Busca y selecciona tu comuna"
@@ -431,6 +462,9 @@ export default {
                 country: "",
                 region: "",
                 city: "",
+                // Texto libre de región/comuna para el link internacional
+                regionText: "",
+                cityText: "",
                 termsAccepted: false,
                 marketingAccepted: false,
                 isFrequentClient: false, // Nuevo campo para indicar si es cliente frecuente
@@ -489,6 +523,18 @@ export default {
                 selectedDocType && selectedDocType.name.toLowerCase() === "dni"
             );
         },
+        /**
+         * Link de pago internacional: los pagadores extranjeros no pertenecen a
+         * ninguna región ni comuna chilena, y el selector de código telefónico solo
+         * cubre 4 países. En esta modalidad Región, Comuna y Teléfono se capturan
+         * como texto libre — siguen siendo obligatorios (Carmen 2026-08-28).
+         * Las demás modalidades conservan sus desplegables originales.
+         */
+        isInternationalPayment() {
+            return String(this.selectedPaymentMethod || "")
+                .toLowerCase()
+                .includes("international");
+        },
         isFormValid() {
             const validations = {
                 nombres: this.formData.nombres.trim() !== "",
@@ -500,8 +546,14 @@ export default {
                 documentNotBlocked: !this.isBlockedDocument,
                 phone: this.formData.phone.trim() !== "",
                 country: this.formData.country !== "",
-                region: this.formData.region !== "",
-                city: this.formData.city !== "",
+                // En el link internacional se valida el texto escrito;
+                // en el resto, el ID seleccionado del desplegable.
+                region: this.isInternationalPayment
+                    ? this.formData.regionText.trim() !== ""
+                    : this.formData.region !== "",
+                city: this.isInternationalPayment
+                    ? this.formData.cityText.trim() !== ""
+                    : this.formData.city !== "",
                 termsAccepted: this.formData.termsAccepted,
             };
 
@@ -631,6 +683,11 @@ export default {
                         country: countryId,
                         region: regionId,
                         city: cityId,
+                        // Link internacional: se guardó sin IDs, el texto viene en
+                        // regionName/cityName. Restaurarlo para no perder lo escrito
+                        // al volver desde el paso de confirmación.
+                        regionText: regionId ? "" : (buyerData.regionName || ""),
+                        cityText: cityId ? "" : (buyerData.cityName || ""),
                         termsAccepted: buyerData.termsAccepted || false,
                         marketingAccepted: buyerData.marketingAccepted || false,
                         isFrequentClient: buyerData.isFrequentClient || false, // Cargar el nuevo campo
@@ -931,6 +988,10 @@ export default {
             this.formData.code_phone = clientData.phone_code;
             this.formData.country = clientData.country_id;
             this.formData.region = clientData.region_id;
+            // Pagador internacional recurrente: recuperar la región/comuna que
+            // escribió como texto libre en su pago anterior.
+            this.formData.regionText = clientData.region_text || "";
+            this.formData.cityText = clientData.comune_text || "";
             // NO autocompletar los checkboxes - el usuario debe seleccionarlos manualmente
             // this.formData.termsAccepted = clientData.terms_accepted;
             // this.formData.marketingAccepted = clientData.marketing_accepted;
@@ -1145,16 +1206,24 @@ export default {
                 documentType: selectedDocType ? selectedDocType.name : "",
                 documentNumber: this.formData.documentNumber,
                 email: this.formData.email,
-                code_phone: this.formData.code_phone,
+                // En el link internacional el número ya viene con su código de país,
+                // así que no se envía un code_phone chileno por defecto.
+                code_phone: this.isInternationalPayment ? "" : this.formData.code_phone,
                 phone: this.formData.phone,
 
-                // Datos de ubicación
+                // Datos de ubicación. En el link internacional los IDs van vacíos
+                // (no aplican regiones/comunas chilenas) y el texto escrito viaja
+                // en regionName/cityName, que el backend guarda como texto libre.
                 countryId: this.formData.country,
                 countryName: selectedCountry ? selectedCountry.name : "",
-                regionId: this.formData.region,
-                regionName: selectedRegion ? selectedRegion.name : "",
-                cityId: this.formData.city,
-                cityName: selectedComune ? selectedComune.name : "",
+                regionId: this.isInternationalPayment ? "" : this.formData.region,
+                regionName: this.isInternationalPayment
+                    ? this.formData.regionText.trim()
+                    : (selectedRegion ? selectedRegion.name : ""),
+                cityId: this.isInternationalPayment ? "" : this.formData.city,
+                cityName: this.isInternationalPayment
+                    ? this.formData.cityText.trim()
+                    : (selectedComune ? selectedComune.name : ""),
 
                 // Acuerdos
                 termsAccepted: this.formData.termsAccepted,
@@ -1214,16 +1283,21 @@ export default {
                 documentType: selectedDocType ? selectedDocType.name : "",
                 documentNumber: this.formData.documentNumber,
                 email: this.formData.email,
-                code_phone: this.formData.code_phone,
+                code_phone: this.isInternationalPayment ? "" : this.formData.code_phone,
                 phone: this.formData.phone,
 
-                // Datos de ubicación (guardar tanto IDs como nombres)
+                // Datos de ubicación (IDs y nombres). Link internacional: sin IDs,
+                // el texto escrito viaja en regionName/cityName.
                 countryId: this.formData.country,
                 countryName: selectedCountry ? selectedCountry.name : "",
-                regionId: this.formData.region,
-                regionName: selectedRegion ? selectedRegion.name : "",
-                cityId: this.formData.city,
-                cityName: selectedComune ? selectedComune.name : "",
+                regionId: this.isInternationalPayment ? "" : this.formData.region,
+                regionName: this.isInternationalPayment
+                    ? this.formData.regionText.trim()
+                    : (selectedRegion ? selectedRegion.name : ""),
+                cityId: this.isInternationalPayment ? "" : this.formData.city,
+                cityName: this.isInternationalPayment
+                    ? this.formData.cityText.trim()
+                    : (selectedComune ? selectedComune.name : ""),
 
                 // Acuerdos
                 termsAccepted: this.formData.termsAccepted,
