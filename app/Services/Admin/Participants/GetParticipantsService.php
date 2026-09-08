@@ -189,14 +189,24 @@ class GetParticipantsService
                 $paidMap[$r->pid . '_' . $r->pgid] = (float) $r->total;
             }
 
-            // Aportes (AP) en 1 query
+            // Aportes (AP) en 1 query. Incluye los reversos administrativos
+            // imputados a aporte (montos negativos), para que un aporte reversado
+            // deje de mostrarse en la columna en lugar de quedar en pie junto a su
+            // reverso (caso 24608324K-C0162, Carmen 2026-09-08). Mismo criterio que
+            // ParticipantFinancialService::aggregatePaymentsByOrderIds().
             $contributionRows = DB::table('payments')
                 ->join('orders', 'payments.order_id', '=', 'orders.id')
                 ->join('payment_options', 'payments.payment_option_id', '=', 'payment_options.id')
                 ->whereIn('orders.participant_id', $participantIds)
                 ->whereIn('orders.program_id', $programIds)
                 ->whereIn('payments.status', ['approved', 'completed'])
-                ->where('payment_options.report_code', 'AP')
+                ->where(function ($q) {
+                    $q->where('payment_options.report_code', 'AP')
+                      ->orWhere(function ($ra) {
+                          $ra->where('payment_options.report_code', 'RA')
+                             ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(payments.gateway_response, '$.ra_imputation_type')) = 'AP'");
+                      });
+                })
                 ->selectRaw('orders.participant_id as pid, orders.program_id as pgid, SUM(payments.amount) as total')
                 ->groupBy('orders.participant_id', 'orders.program_id')
                 ->get();
