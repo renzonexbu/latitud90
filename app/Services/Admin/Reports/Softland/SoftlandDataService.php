@@ -1578,9 +1578,14 @@ class SoftlandDataService
             'nro_docto_referencia' => $asientoNroDoc,
             'nro_correlativo_interno' => '',
 
-            // Montos detalle libro (columnas 27-36)
+            // Montos detalle libro (columnas 27-36).
+            // Solo el Comprobante 1 de boletas (1-1-02-010) lleva detalle de libro.
+            // Cuando la cuota es AC el asiento cae en las cuentas de medio de pago
+            // (014/009/039) y esas columnas deben ir vacías, igual que en
+            // createACDebitMovement. Antes se llenaban siempre y aparecían valores
+            // en AB, AJ y AK dentro de la 1-1-02-014 (Carmen 2026-09-08).
             'monto_1_detalle_libro' => '',
-            'monto_2_detalle_libro' => (int) abs($installment['amount']),
+            'monto_2_detalle_libro' => $isAC ? '' : (int) abs($installment['amount']),
             'monto_3_detalle_libro' => '',
             'monto_4_detalle_libro' => '',
             'monto_5_detalle_libro' => '',
@@ -1588,10 +1593,10 @@ class SoftlandDataService
             'monto_7_detalle_libro' => '',
             'monto_8_detalle_libro' => '',
             'monto_9_detalle_libro' => '',
-            'monto_suma_detalle_libro' => (int) abs($installment['amount']),
+            'monto_suma_detalle_libro' => $isAC ? '' : (int) abs($installment['amount']),
 
             // Configuración (columnas 37-38)
-            'graba_detalle_libro' => 'S',
+            'graba_detalle_libro' => $isAC ? '' : 'S',
             'documento_nulo' => '',
 
             // Flujos de efectivo (columnas 39-58)
