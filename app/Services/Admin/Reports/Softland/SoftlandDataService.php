@@ -1138,6 +1138,14 @@ class SoftlandDataService
         $accountCode = $this->getAccountCodeByPaymentMethod($paymentMethod);
         $accountingDocNumber = $this->getAccountingDocumentNumber($payment, $paymentMethod);
 
+        // Banco (1-1-01-039): el tipo y el nro de documento van en las columnas de
+        // conciliación (Q y R), con auxiliar, documento (T/U) y referencia vacíos.
+        // Es la misma regla que createPresentialDebitMovement: Carmen la pidió para
+        // "pagos Y anticipos" de esa cuenta (2026-08-26) y en la primera pasada solo
+        // se aplicó a los pagos, así que los anticipos por transferencia seguían
+        // saliendo con la forma de oficina (2026-09-08).
+        $isBank = $accountCode === '1-1-01-039';
+
         return [
             // Información básica
             'codigo_plan_cuenta' => $accountCode, // Cuenta según medio de pago (014/009/039)
@@ -1159,16 +1167,18 @@ class SoftlandDataService
             'cantidad_concepto_gasto' => '', // Columna 15 - vacía
             'codigo_centro_costo' => '', // Columna 16 - vacía para AC
 
-            // Documentación (columnas 17-26)
-            'tipo_docto_conciliacion' => '', // Columna 17 - vacía
-            'nro_docto_conciliacion' => '', // Columna 18 - vacía
-            'codigo_auxiliar' => $this->formatPayerAuxiliaryCode($payment), // Columna 19 - RUT pagador sin DV
-            'tipo_documento' => $paymentMethod, // Columna 20 - método de pago (VP/KP/TC/WP/TE/DP)
-            'nro_documento' => $accountingDocNumber, // Columna 21 - según método: uuid/auth_code/DDMMAA
+            // Documentación (columnas 17-26). En banco todo el dato documental va
+            // en conciliación (Q/R); en las demás cuentas se mantiene en T/U más
+            // auxiliar y referencia.
+            'tipo_docto_conciliacion' => $isBank ? $paymentMethod : '', // Columna 17
+            'nro_docto_conciliacion' => $isBank ? $accountingDocNumber : '', // Columna 18
+            'codigo_auxiliar' => $isBank ? '' : $this->formatPayerAuxiliaryCode($payment), // Columna 19 - RUT pagador sin DV
+            'tipo_documento' => $isBank ? '' : $paymentMethod, // Columna 20 - método de pago (VP/KP/TC/WP/TE/DP)
+            'nro_documento' => $isBank ? '' : $accountingDocNumber, // Columna 21 - según método: uuid/auth_code/DDMMAA
             'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->accounting_date ?? $payment->transaction_date), // Columna V - formato DD-MM-YYYY
             'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->accounting_date ?? $payment->transaction_date),
-            'tipo_docto_referencia' => $paymentMethod, // Columna 24 - mismo que tipo_documento
-            'nro_docto_referencia' => $accountingDocNumber, // Columna 25 - mismo que nro_documento
+            'tipo_docto_referencia' => $isBank ? '' : $paymentMethod, // Columna 24 - mismo que tipo_documento
+            'nro_docto_referencia' => $isBank ? '' : $accountingDocNumber, // Columna 25 - mismo que nro_documento
             'fecha_docto_referencia' => '', // Columna 26 - vacía
 
             // Montos detalle libro (columnas 27-36 vacías)
