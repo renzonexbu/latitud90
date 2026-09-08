@@ -393,8 +393,21 @@ class ImportRefundsService
         $aplicar = strtolower(trim($aplicarA));
 
         if ($tipo === 'RA') {
+            // "Aplicar A" define contra qué se imputa el reverso. Antes se ignoraba
+            // por completo en RA, así que un reverso sobre un aporte quedaba en un
+            // renglón aparte y el aporte seguía apareciendo (caso 24608324K-C0162,
+            // Carmen 2026-09-08). Se aceptan sinónimos porque en la plantilla se
+            // escribe indistintamente "AP", "Aporte" o "Aportes".
+            $imputation = 'CT';
+            if (in_array($aplicar, ['ap', 'aporte', 'aportes'], true)) {
+                $imputation = 'AP';
+            } elseif (in_array($aplicar, ['ac', 'anticipo', 'anticipos'], true)) {
+                $imputation = 'AC';
+            }
+
             return [
                 'refund_type' => 'refund_admin_reversal',
+                'ra_imputation_type' => $imputation,
                 'label' => 'Reverso Administrativo (RA)',
             ];
         }
@@ -631,6 +644,7 @@ class ImportRefundsService
                 'client_rut' => $cleanRut,
                 'client_name' => $clientName,
                 'refund_type' => $refundTypeInfo['refund_type'],
+                'ra_imputation_type' => $refundTypeInfo['ra_imputation_type'] ?? null,
                 'authorization_code' => !empty($rowData['nro_aut']) ? trim((string) $rowData['nro_aut']) : null,
             ];
 

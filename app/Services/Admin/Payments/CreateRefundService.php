@@ -426,8 +426,9 @@ class CreateRefundService
         // Determinar el tipo de documento fiscal según el tipo de reembolso
         // NC (Nota de Crédito) usa 'VC'
         // RA usa 'RA' por defecto, pero si la imputación es AC (Anticipo de Cliente) se registra como 'AC'
+        $raImputationType = null;
         if ($paymentOption->code === 'refund_admin_reversal') {
-            $raImputationType = $data['ra_imputation_type'] ?? 'CT';
+            $raImputationType = strtoupper(trim((string) ($data['ra_imputation_type'] ?? 'CT'))) ?: 'CT';
             $documentType = ($raImputationType === 'AC') ? 'AC' : 'RA';
         } else {
             $documentType = 'VC';
@@ -456,6 +457,12 @@ class CreateRefundService
                 'payment_type' => 'refund',
                 'refund_type' => $paymentOption->code,
                 'refund_reason' => $refundReason,
+                // Contra qué se imputa el RA: CT (crédito temporal), AC (anticipo)
+                // o AP (aporte). Lo lee ParticipantFinancialService para netear el
+                // reverso contra el casillero correcto en vez de dejarlo aparte.
+                // El report_code sigue siendo 'RA' para no sacarlo del listado de
+                // devoluciones ni cambiar su glosa en Softland.
+                'ra_imputation_type' => $raImputationType,
                 'fiscal_data' => [
                     'sii_code' => $data['sii_code'] ?? null,
                     'document_number' => $data['document_number'] ?? null,

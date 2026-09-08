@@ -148,9 +148,13 @@ class ParticipantFinancialService
             ->whereIn('payments.status', ['approved', 'completed'])
             ->select(
                 DB::raw("COALESCE(payment_options.report_code, '') as report_code"),
+                // Imputación del reverso administrativo (CT/AC/AP), guardada por
+                // CreateRefundService. Permite netear el RA contra el casillero que
+                // reversa en vez de dejarlo siempre aparte.
+                DB::raw("JSON_UNQUOTE(JSON_EXTRACT(payments.gateway_response, '$.ra_imputation_type')) as ra_imputation"),
                 DB::raw('SUM(payments.amount) as total')
             )
-            ->groupBy('report_code')
+            ->groupBy('report_code', 'ra_imputation')
             ->get();
 
         $breakdown = self::emptyPaymentBreakdown();
@@ -168,7 +172,15 @@ class ParticipantFinancialService
             } elseif ($code === 'NC') {
                 $breakdown['nota_credito'] += $amount;
             } elseif ($code === 'RA') {
-                $breakdown['reverso_admin'] += $amount;
+                // Un RA imputado a un aporte se resta del aporte, para que este
+                // desaparezca en lugar de convivir con su reverso en otro renglón
+                // (pedido de Carmen 2026-09-08). Sin imputación mantiene el
+                // comportamiento histórico: renglón propio de reverso.
+                if ($row->ra_imputation === 'AP') {
+                    $breakdown['aporte'] += $amount;
+                } else {
+                    $breakdown['reverso_admin'] += $amount;
+                }
             } else {
                 // Pagos sin payment_option_id o con código desconocido → cuentan como abono
                 $breakdown['abono'] += $amount;
