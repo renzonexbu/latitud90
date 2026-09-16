@@ -20,6 +20,13 @@ class GuardianParticipantService
      */
     public function getParticipantsForGuardian(GuardianUser $user): array
     {
+        // El vínculo apoderado-participante solo se crea al registrarse, y solo
+        // para el participante que originó el registro. Si después paga por otro
+        // hijo, ese participante nunca aparece en "Mis Participantes" aunque el
+        // pago quede correctamente acreditado (caso Lisandro Urrutia, 2026-09-16).
+        // Antes de listar se reponen los vínculos faltantes a partir de los pagos.
+        $this->linkParticipantsPaidByGuardian($user);
+
         // Obtener participantes desde la nueva tabla pivote
         $participants = $user->participants()
             ->with('documentType')
@@ -114,6 +121,57 @@ class GuardianParticipantService
     public function getParticipantsList(GuardianUser $user): array
     {
         return $this->getParticipantsForGuardian($user);
+    }
+
+    /**
+     * Repone los vínculos faltantes entre el apoderado y los participantes por
+     * los que efectivamente pagó, identificándolos por el RUT del pagador que
+     * quedó registrado en el detalle de la orden.
+     *
+     * Es idempotente y solo escribe cuando falta algún vínculo, así que en el
+     * caso normal (nada que reponer) no hace ninguna escritura.
+     */
+    private function linkParticipantsPaidByGuardian(GuardianUser $user): void
+    {
+        $guardianDocument = preg_replace('/[^0-9kK]/', '', (string) $user->document);
+
+        if (strlen($guardianDocument) < 2) {
+            return;
+        }
+
+        $participantIds = DB::table('orders_detail as od')
+            ->join('orders as o', 'o.id', '=', 'od.order_id')
+            ->whereNotNull('od.document_number')
+            ->where('od.document_number', '!=', '')
+            ->whereRaw("REPLACE(REPLACE(REPLACE(od.document_number, '.', ''), '-', ''), ' ', '') = ?", [$guardianDocument])
+            ->whereNotNull('o.participant_id')
+            ->whereNotExists(function ($q) use ($user) {
+                $q->select(DB::raw(1))
+                    ->from('guardian_user_participant as gp')
+                    ->where('gp.guardian_user_id', $user->id)
+                    ->whereColumn('gp.participant_id', 'o.participant_id');
+            })
+            ->distinct()
+            ->pluck('o.participant_id');
+
+        if ($participantIds->isEmpty()) {
+            return;
+        }
+
+        foreach ($participantIds as $participantId) {
+            DB::table('guardian_user_participant')->insertOrIgnore([
+                'guardian_user_id' => $user->id,
+                'participant_id' => $participantId,
+                'can_pay' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        \Log::info('GuardianParticipantService: vínculos repuestos desde pagos', [
+            'guardian_user_id' => $user->id,
+            'participant_ids' => $participantIds->all(),
+        ]);
     }
 
     /**
