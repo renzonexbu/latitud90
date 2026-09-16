@@ -157,13 +157,28 @@ class GetSubscriptionsService
      */
     private function applyFilters($query, Request $request): void
     {
-        // Filtro de búsqueda por nombre del participante
+        // Búsqueda por participante. Antes comparaba el término contra cada campo
+        // del nombre por separado, así que escribir el nombre completo no
+        // encontraba nada: "Ashley Kim Kwon" no está contenido en first_name
+        // ("Ashley") ni en first_last_name ("Kim") (Carmen 2026-09-16).
+        // Ahora se busca sobre el nombre completo concatenado, y además por RUT y
+        // por los datos del pagador, que es lo que se suele tener a mano.
         if ($request->participant_name) {
-            $query->whereHas('participant', function ($q) use ($request) {
-                $q->where('first_last_name', 'like', '%' . $request->participant_name . '%')
-                  ->orWhere('second_last_name', 'like', '%' . $request->participant_name . '%')
-                  ->orWhere('first_name', 'like', '%' . $request->participant_name . '%')
-                  ->orWhere('second_name', 'like', '%' . $request->participant_name . '%');
+            $term = trim($request->participant_name);
+            $like = '%' . $term . '%';
+            // Los espacios se vuelven comodines: "Ashley Kwon" encuentra
+            // "Ashley Kim Kwon" aunque falte el apellido del medio.
+            $spaced = '%' . preg_replace('/\s+/', '%', $term) . '%';
+
+            $query->where(function ($outer) use ($like, $spaced) {
+                $outer->whereHas('participant', function ($q) use ($like, $spaced) {
+                    $q->whereRaw(
+                        "CONCAT_WS(' ', first_name, second_name, first_last_name, second_last_name) LIKE ?",
+                        [$spaced]
+                    )->orWhere('document_number', 'like', $like);
+                })
+                // Datos del pagador (nombre, email, RUT) guardados en la suscripción
+                ->orWhere('buyer_data', 'like', $like);
             });
         }
 

@@ -233,6 +233,17 @@ class ProgramDetailService
             })
             ->toArray();
 
+        // Un PAT cancelado cierra la modalidad de suscripción para ese participante
+        // en ese programa: no puede volver a suscribirse, aunque el programa siga
+        // ofreciéndola (Carmen 2026-09-16, caso Jieun Kwon / V0147 — el banco
+        // terminaba rechazando el cobro pero el sistema igual lo dejaba intentar).
+        // SUSCRIPCION_FALLIDA no cuenta: ahí el cobro nunca prosperó y el apoderado
+        // debe poder reintentar. Las demás formas de pago siguen disponibles.
+        $hasCancelledSubscription = $participant && ProgramSubscription::where('participant_id', $participant->id)
+            ->where('program_id', $programCourse->id)
+            ->where('status', 'CANCELADA')
+            ->exists();
+
         // FALLBACK: Si no hay opciones en la BD, usar opciones por defecto
         if (empty($fullPaymentOptionCodes) && $programCourse->enable_total_payment) {
             $fullPaymentOptionCodes = [
@@ -291,7 +302,9 @@ class ProgramDetailService
             'enable_total_payment' => $programCourse->enable_total_payment,
             'full_payment_options' => $fullPaymentOptionCodes,
             // Suscripciones: verificar flag global además del flag del programa
-            'enable_lat90_payment' => $programCourse->enable_subscription_payment && config('services.subscriptions.enabled', true),
+            'enable_lat90_payment' => $programCourse->enable_subscription_payment
+                && config('services.subscriptions.enabled', true)
+                && !$hasCancelledSubscription,
             'subscriptions_globally_disabled' => !config('services.subscriptions.enabled', true),
             'subscriptions_disabled_message' => config('services.subscriptions.disabled_message', 'El método de pago por suscripción no está disponible temporalmente.'),
             'lat90_payment_options' => $subscriptionPaymentOptionCodes,
