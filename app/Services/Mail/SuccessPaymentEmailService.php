@@ -394,7 +394,7 @@ class SuccessPaymentEmailService
 
         // Si es suscripción, agregar información de próxima cuota
         if ($isSubscription) {
-            $subscriptionData = $this->getSubscriptionData($order);
+            $subscriptionData = $this->getSubscriptionData($order, $payment);
             $data = array_merge($data, $subscriptionData);
         }
 
@@ -402,9 +402,16 @@ class SuccessPaymentEmailService
     }
 
     /**
-     * Obtener datos adicionales de la suscripción
+     * Obtener datos adicionales de la suscripción (nro de cuota, total y próximo cobro).
+     *
+     * El plan se resuelve a partir de la cuota que este mismo pago liquidó. Antes se
+     * buscaba por participante + programa con ->first(), y como cada reintento de
+     * suscripción crea un plan nuevo, el correo terminaba leyendo un plan abandonado:
+     * anunciaba como "próximo pago" una cuota pendiente ya vencida y contaba cuotas
+     * canceladas en el total (caso Simon Ortega / V0196 — pagó el 23-09 y se le
+     * anunció el 21-09, del plan 1509 en vez del 1513). Carmen 2026-09-23.
      */
-    private function getSubscriptionData(\App\Models\Order $order): array
+    private function getSubscriptionData(\App\Models\Order $order, ?Payment $payment = null): array
     {
         $data = [
             'next_payment_date' => null,
@@ -413,28 +420,66 @@ class SuccessPaymentEmailService
         ];
 
         try {
-            // Buscar el plan de cuotas
-            $installmentPlan = \App\Models\InstallmentPlan::where('participant_id', $order->participant_id)
-                ->where('program_id', $order->program_id)
-                ->first();
+            $paidInstallment = null;
 
-            if ($installmentPlan) {
-                // Contar total de cuotas
-                $totalInstallments = \App\Models\Installment::where('installment_plan_id', $installmentPlan->id)->count();
-                $data['total_installments'] = $totalInstallments;
+            // 1. La cuota que liquidó este pago identifica el plan sin ambigüedad
+            if ($payment) {
+                $paidInstallment = \App\Models\Installment::where('payment_id', $payment->id)->first();
+            }
 
-                // Buscar próxima cuota pendiente
-                $nextInstallment = \App\Models\Installment::where('installment_plan_id', $installmentPlan->id)
-                    ->whereIn('status', ['pending', 'overdue'])
-                    ->orderBy('due_date', 'asc')
+            $installmentPlan = $paidInstallment
+                ? \App\Models\InstallmentPlan::find($paidInstallment->installment_plan_id)
+                : null;
+
+            // 2. Si la cuota aún no quedó enlazada al pago, resolver por la suscripción
+            //    de la orden, que también es determinista
+            if (!$installmentPlan && $order->subscription_id) {
+                $installmentPlan = \App\Models\InstallmentPlan::where('program_subscription_id', $order->subscription_id)
+                    ->orderByDesc('id')
                     ->first();
+            }
 
-                if ($nextInstallment) {
-                    $data['next_payment_date'] = $nextInstallment->due_date
-                        ? \Carbon\Carbon::parse($nextInstallment->due_date)->format('d/m/Y')
-                        : null;
-                    $data['next_payment_amount'] = number_format($nextInstallment->amount, 0, ',', '.');
-                }
+            // 3. Último recurso (datos antiguos sin vínculo): el plan más reciente
+            //    no cancelado del participante en el programa
+            if (!$installmentPlan) {
+                $installmentPlan = \App\Models\InstallmentPlan::where('participant_id', $order->participant_id)
+                    ->where('program_id', $order->program_id)
+                    ->where('status', '!=', 'cancelled')
+                    ->orderByDesc('id')
+                    ->first();
+            }
+
+            if (!$installmentPlan) {
+                return $data;
+            }
+
+            // Total: solo cuotas vigentes. Las canceladas inflaban la cifra.
+            $data['total_installments'] = \App\Models\Installment::where('installment_plan_id', $installmentPlan->id)
+                ->where('status', '!=', 'cancelled')
+                ->count();
+
+            // Nro de cuota real dentro del plan, no el del detalle de la orden
+            if ($paidInstallment) {
+                $data['installment_number'] = $paidInstallment->installment_number;
+            }
+
+            // Próximo cobro: la siguiente cuota vigente del mismo plan, posterior a
+            // la recién pagada. Nunca una anterior, que es lo que producía fechas
+            // en el pasado.
+            $nextQuery = \App\Models\Installment::where('installment_plan_id', $installmentPlan->id)
+                ->whereIn('status', ['pending', 'overdue']);
+
+            if ($paidInstallment) {
+                $nextQuery->where('installment_number', '>', $paidInstallment->installment_number);
+            }
+
+            $nextInstallment = $nextQuery->orderBy('installment_number', 'asc')->first();
+
+            if ($nextInstallment) {
+                $data['next_payment_date'] = $nextInstallment->due_date
+                    ? \Carbon\Carbon::parse($nextInstallment->due_date)->format('d/m/Y')
+                    : null;
+                $data['next_payment_amount'] = number_format($nextInstallment->amount, 0, ',', '.');
             }
         } catch (\Exception $e) {
             $this->logError('SuccessPaymentEmailService: Error obteniendo datos de suscripción', [
