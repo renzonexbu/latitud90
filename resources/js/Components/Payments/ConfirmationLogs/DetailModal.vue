@@ -218,6 +218,7 @@ const getEventLabel = (eventType) => {
         'contract_generated': '📋 Contrato Generado',
         'bsale_invoice_generated': '🧾 Boleta Bsale Generada',
         'email_sent': '📧 Email de Confirmación Enviado',
+        'bsale_email_sent': '📨 Email con Boleta Enviado',
         'email_failed': '❌ Error al Enviar Email',
         'email_resent': '🔄 Email Reenviado'
     };

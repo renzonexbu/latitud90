@@ -104,6 +104,17 @@ class SendBsaleEmailJob implements ShouldQueue
                 'bsale_email_sent_at' => now(),
             ]);
 
+            // Dejar rastro en el historial de confirmación: este envío no quedaba
+            // registrado en ninguna parte visible, así que no había forma de
+            // demostrarle al cliente que la boleta salió (Carmen 2026-09-23).
+            \App\Models\PaymentConfirmationLog::logBsaleEmailSent(
+                $payment,
+                $orderDetail,
+                $email,
+                ['Boleta_Bsale_' . $orderNumber . '.pdf'],
+                ['bsale_number' => $payment->bsale_number]
+            );
+
             Log::info('SendBsaleEmailJob: Email de boleta enviado exitosamente', [
                 'payment_id'    => $payment->id,
                 'bsale_number'  => $payment->bsale_number,

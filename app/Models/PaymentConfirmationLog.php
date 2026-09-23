@@ -154,6 +154,37 @@ class PaymentConfirmationLog extends Model
         }
     }
 
+    /**
+     * Registra el envío del correo que lleva la boleta BSale (SendBsaleEmailJob).
+     *
+     * Es un correo distinto al de confirmación: sale una hora después y es el
+     * único que lleva la boleta adjunta. Sin este registro la línea de tiempo no
+     * mostraba rastro de ese envío, y no había forma de demostrarle al cliente
+     * que la boleta salió (Carmen 2026-09-23).
+     */
+    public static function logBsaleEmailSent($payment, $orderDetail, $recipient, $attachments = [], $details = [])
+    {
+        try {
+            return static::create([
+                'payment_id' => $payment->id ?? null,
+                'order_detail_id' => $orderDetail->id ?? null,
+                'order_id' => $orderDetail->order_id ?? null,
+                'event_type' => 'bsale_email_sent',
+                'status' => 'success',
+                'email_recipient' => $recipient,
+                'email_attachments' => $attachments,
+                'bsale_number' => $payment->bsale_number ?? null,
+                'details' => $details,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('PaymentConfirmationLog: Error logging bsale email sent', [
+                'payment_id' => $payment->id ?? null,
+                'error' => $e->getMessage(),
+            ]);
+            return null;
+        }
+    }
+
     public static function logEmailSent($payment, $orderDetail, $recipient, $attachments = [], $details = [])
     {
         try {
