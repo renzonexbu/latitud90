@@ -34,6 +34,19 @@ class Kernel extends ConsoleKernel
         // COMANDOS ACTIVOS EN PRODUCCIÓN
         // =====================================================================
 
+        // 0. Procesar la cola de trabajos - cada minuto
+        // QUEUE_CONNECTION=database requiere un worker que consuma la tabla `jobs`.
+        // No había ninguno: los trabajos encolados desde 2026-01 nunca se
+        // ejecutaron, y con ellos los correos que llevan la boleta BSale
+        // (SendBsaleEmailJob) y las recuperaciones de contraseña de apoderados.
+        // El hosting no permite demonios permanentes, así que se corre desde el
+        // programador: --stop-when-empty termina al vaciar la cola y --max-time
+        // acota la vuelta para que no se solape con la siguiente.
+        $schedule->command('queue:work --stop-when-empty --max-time=50 --tries=3 --quiet')
+            ->everyMinute()
+            ->withoutOverlapping(2)
+            ->runInBackground();
+
         // 1. Enviar emails pendientes de pagos exitosos - cada minuto
         // El comando aplica un delay configurable (default 10 min) antes de enviar
         // para permitir que BSale genere la boleta
