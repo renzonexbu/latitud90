@@ -40,6 +40,11 @@ class Payment extends Model
         'error_message',
         'email_sent',
         'email_sent_at',
+        // Sin estas dos, SendBsaleEmailJob enviaba el correo con la boleta pero
+        // el update() las descartaba en silencio por no ser asignables: el envío
+        // quedaba sin registrar y el job volvía a intentarlo (Liliam 2026-09-24).
+        'bsale_email_sent',
+        'bsale_email_sent_at',
         'bsale_document_id',
         'bsale_number',
         'bsale_token',
@@ -64,6 +69,8 @@ class Payment extends Model
         'installment_amount' => 'decimal:2',
         'email_sent' => 'boolean',
         'email_sent_at' => 'datetime:America/Santiago',
+        'bsale_email_sent' => 'boolean',
+        'bsale_email_sent_at' => 'datetime:America/Santiago',
         'email_attempts' => 'integer',
         'generated_document_types' => 'array'
     ];
