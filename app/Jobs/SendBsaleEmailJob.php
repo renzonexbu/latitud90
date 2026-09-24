@@ -111,7 +111,12 @@ class SendBsaleEmailJob implements ShouldQueue
                 $payment,
                 $orderDetail,
                 $email,
-                ['Boleta_Bsale_' . $orderNumber . '.pdf'],
+                // Mismo formato que usa logEmailSent: la vista lee 'name'.
+                [[
+                    'type' => 'bsale_invoice',
+                    'name' => 'Boleta_Bsale_' . $orderNumber . '.pdf',
+                    'path' => $bsalePdfPath,
+                ]],
                 ['bsale_number' => $payment->bsale_number]
             );
 
