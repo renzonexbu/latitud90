@@ -120,48 +120,34 @@ class GetParticipantPaymentStatusService
                 ->where('program_id', $programCourseId)
                 ->pluck('id')->all();
 
-            // 1. Pagos normales (excluir suscripciones y aportes AP)
-            $normalPayments = 0.0;
+            // Fuente de verdad: SUM de TODOS los payments aprobados, igual que el
+            // portal cliente (ProgramDetailService). Antes se excluía
+            // payment_source = 'subscription' y las cuotas PAT se sumaban desde
+            // installments de planes no cancelados: al dar de baja una suscripción
+            // el plan queda 'cancelled' y el abono ya pagado desaparecía por los
+            // dos lados, mostrando $0 al registrar el pago presencial
+            // (Liliam 2026-09-29, V0038 Moana nui Castillo).
+            $abono = 0.0;
             $aporteAmount = 0.0;
             if (!empty($orderIds)) {
-                $normalPayments = (float) Payment::whereIn('order_id', $orderIds)
+                $abono = (float) Payment::whereIn('order_id', $orderIds)
                     ->whereIn('status', ['approved', 'completed'])
-                    ->where(function($query) {
-                        $query->whereNull('payment_source')
-                              ->orWhere('payment_source', '!=', 'subscription');
-                    })
-                    ->where(function($q) {
+                    ->where(function ($q) {
                         $q->whereNull('payment_option_id')
-                          ->orWhereHas('paymentOption', function($sq) {
+                          ->orWhereHas('paymentOption', function ($sq) {
                               $sq->where('report_code', '!=', 'AP');
                           });
                     })
                     ->sum('amount');
 
-                // Aportes (pagos con report_code 'AP', excluyendo subscription source)
+                // Aportes (report_code 'AP'): se muestran aparte del abono
                 $aporteAmount = (float) Payment::whereIn('order_id', $orderIds)
                     ->whereIn('status', ['approved', 'completed'])
-                    ->where(function($query) {
-                        $query->whereNull('payment_source')
-                              ->orWhere('payment_source', '!=', 'subscription');
-                    })
-                    ->whereHas('paymentOption', function($q) {
+                    ->whereHas('paymentOption', function ($q) {
                         $q->where('report_code', 'AP');
                     })
                     ->sum('amount');
             }
-
-            // 2. Cuotas de suscripción pagadas (installments) - solo de planes activos
-            $subscriptionPayments = (float) \App\Models\Installment::whereHas('installmentPlan', function ($q) use ($participantId, $programCourseId) {
-                    $q->where('participant_id', $participantId)
-                      ->where('program_id', $programCourseId)
-                      ->where('status', '!=', 'cancelled');
-                })
-                ->where('status', 'paid')
-                ->sum('amount');
-
-            // Abono = pagos normales + cuotas de suscripción (sin aportes)
-            $abono = $normalPayments + $subscriptionPayments;
 
             // Total pagado real (incluyendo aportes)
             $totalPaidAmount = round($abono + $aporteAmount, 2);
