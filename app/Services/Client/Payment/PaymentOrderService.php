@@ -251,6 +251,12 @@ class PaymentOrderService
      */
     private function resolveLocationId($value, string $type): ?int
     {
+        // El frontend a veces manda el objeto completo ({id, name}) en vez del id.
+        // El cast a string reventaba con "Array to string conversion" y el
+        // apoderado veía ese texto crudo en vez de poder pagar (Liliam 2026-09-30).
+        if (is_array($value)) {
+            $value = $value['id'] ?? $value['name'] ?? null;
+        }
         if (empty($value)) { return null; }
         if (is_numeric($value)) { return (int) $value; }
         
@@ -289,6 +295,12 @@ class PaymentOrderService
      */
     private function resolveDocumentTypeId($value): ?int
     {
+        // El frontend a veces manda el objeto completo ({id, name}) en vez del id.
+        // El cast a string reventaba con "Array to string conversion" y el
+        // apoderado veía ese texto crudo en vez de poder pagar (Liliam 2026-09-30).
+        if (is_array($value)) {
+            $value = $value['id'] ?? $value['name'] ?? null;
+        }
         if (empty($value)) { return null; }
         if (is_numeric($value)) { return (int) $value; }
         

@@ -235,6 +235,12 @@ class UpdateBuyerDataService
     // Métodos de resolución de IDs
     private function resolveCountryId($value): ?int
     {
+        // El frontend a veces manda el objeto completo ({id, name}) en vez del id.
+        // El cast a string reventaba con "Array to string conversion" y el
+        // apoderado veía ese texto crudo en vez de poder pagar (Liliam 2026-09-30).
+        if (is_array($value)) {
+            $value = $value['id'] ?? $value['name'] ?? null;
+        }
         if (empty($value)) {
             return null;
         }
@@ -258,6 +264,12 @@ class UpdateBuyerDataService
 
     private function resolveRegionId($value): ?int
     {
+        // El frontend a veces manda el objeto completo ({id, name}) en vez del id.
+        // El cast a string reventaba con "Array to string conversion" y el
+        // apoderado veía ese texto crudo en vez de poder pagar (Liliam 2026-09-30).
+        if (is_array($value)) {
+            $value = $value['id'] ?? $value['name'] ?? null;
+        }
         if (empty($value)) {
             return null;
         }
@@ -275,6 +287,12 @@ class UpdateBuyerDataService
 
     private function resolveCityId($value): ?int
     {
+        // El frontend a veces manda el objeto completo ({id, name}) en vez del id.
+        // El cast a string reventaba con "Array to string conversion" y el
+        // apoderado veía ese texto crudo en vez de poder pagar (Liliam 2026-09-30).
+        if (is_array($value)) {
+            $value = $value['id'] ?? $value['name'] ?? null;
+        }
         if (empty($value)) {
             return null;
         }
@@ -292,6 +310,12 @@ class UpdateBuyerDataService
 
     private function resolveDocumentTypeId($value): ?int
     {
+        // El frontend a veces manda el objeto completo ({id, name}) en vez del id.
+        // El cast a string reventaba con "Array to string conversion" y el
+        // apoderado veía ese texto crudo en vez de poder pagar (Liliam 2026-09-30).
+        if (is_array($value)) {
+            $value = $value['id'] ?? $value['name'] ?? null;
+        }
         if (empty($value)) {
             return null;
         }
