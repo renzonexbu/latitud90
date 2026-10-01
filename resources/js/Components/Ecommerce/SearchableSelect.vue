@@ -45,6 +45,11 @@
 <script>
 export default {
     name: 'SearchableSelect',
+    // Sin esto el @input del padre se registra como listener nativo en el <div>
+    // raiz, y el evento del input de busqueda le burbujea encima: el padre
+    // recibia el Event del DOM en vez del id y la orden reventaba con
+    // "Array to string conversion" (Liliam 2026-09-30).
+    emits: ['input'],
     props: {
         options: {
             type: Array,
