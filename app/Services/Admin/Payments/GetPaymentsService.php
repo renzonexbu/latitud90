@@ -198,6 +198,11 @@ class GetPaymentsService
                 $q->where('id', 'like', '%' . $request->search . '%')
                   ->orWhere('buy_order', 'like', '%' . $request->search . '%')
                   ->orWhere('authorization_code', 'like', '%' . $request->search . '%')
+                  // El "Nro. Autorizacion" de los reportes de VirtualPOS son los
+                  // primeros 8 digitos de este ID, no el codigo de la tarjeta: sin
+                  // esto contabilidad no podia cruzar sus reclamos (Carmen 2026-10-13).
+                  ->orWhere('external_payment_id', 'like', $request->search . '%')
+                  ->orWhere('token', 'like', $request->search . '%')
                   ->orWhereHas('order.participant', function ($sq) use ($request) {
                       $sq->where('first_last_name', 'like', '%' . $request->search . '%')
                         ->orWhere('second_last_name', 'like', '%' . $request->search . '%')
