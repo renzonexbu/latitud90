@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\Payment;
 use App\Models\Participant;
 use App\Models\InstallmentPlan;
+use App\Models\ProgramSubscription;
 use App\Helpers\ParticipantPriceHelper;
 use App\Traits\SystemLogging;
 use Illuminate\Support\Facades\DB;
@@ -137,7 +138,17 @@ class ConfirmPaymentService
         // Plan de cuotas activo usando la nueva arquitectura
         $activeInstallment = null;
         $paymentPlanLocked = false;
-        if ($participant) {
+        // Solo seguir en "cuota PAT" si la suscripcion sigue vigente. Al cancelar
+        // un PAT el installment_plan queda status=active, asi que esta pantalla
+        // ofrecia la cuota 7 de 9 en vez del saldo por pagar, y escondia debito/
+        // credito (Liliam 2026-10-19, Victoria Arevalo - Los Ceibos Talagante).
+        // Mismo criterio que ProgramDetailService.
+        $hasActiveSubscription = $participant && ProgramSubscription::where('participant_id', $participant->id)
+            ->where('program_id', $programCourse->id)
+            ->whereIn('status', ['ACTIVA', 'SUSCRIBIENDO'])
+            ->exists();
+
+        if ($participant && $hasActiveSubscription) {
             $installmentPlan = InstallmentPlan::where('participant_id', $participant->id)
                 ->where('program_id', $programCourse->id) // program_id ahora apunta a program_courses
                 ->where('status', 'active')

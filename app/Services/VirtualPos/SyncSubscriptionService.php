@@ -89,6 +89,22 @@ class SyncSubscriptionService
                 'last_synced_at' => now(),
             ]);
 
+            // La baja que llega desde VirtualPos no cerraba el plan de cuotas, al
+            // reves que la baja hecha desde el admin: quedaban planes "active" de
+            // suscripciones muertas y el portal seguia cobrando la cuota PAT en
+            // vez del saldo (Liliam 2026-10-19).
+            $estadosDeBaja = ['CANCELADA', 'RECHAZADA', 'SUSCRIPCION_FALLIDA'];
+            if (in_array($newStatus, $estadosDeBaja, true) && !in_array($oldStatus, $estadosDeBaja, true)) {
+                $planesCerrados = \App\Models\InstallmentPlan::closeForSubscription($subscription);
+
+                Log::channel('daily')->info('SYNC: Planes de cuotas cerrados por baja de suscripción', [
+                    'subscription_id' => $subscription->id,
+                    'old_status' => $oldStatus,
+                    'new_status' => $newStatus,
+                    'planes_cerrados' => $planesCerrados,
+                ]);
+            }
+
             // Sincronizar cuotas si hay programa de cargos
             $chargeProgram = $subscriptionData['charge_program'] ?? [];
             $installmentsSynced = 0;

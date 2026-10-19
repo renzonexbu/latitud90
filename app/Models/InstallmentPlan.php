@@ -95,4 +95,36 @@ class InstallmentPlan extends Model
     {
         return $this->getPaidInstallmentsCountAttribute() === $this->total_installments;
     }
+
+    /**
+     * Cierra los planes de cuotas de una suscripcion dada de baja.
+     *
+     * Un plan que queda en 'active' tras la baja deja al portal ofreciendo la
+     * siguiente cuota PAT en vez del saldo por pagar. Lo hacia la baja desde el
+     * admin pero no la que llega por sincronizacion con VirtualPos, asi que la
+     * logica vive aca y la usan los dos (Liliam 2026-10-19).
+     */
+    public static function closeForSubscription(ProgramSubscription $subscription): int
+    {
+        $plans = static::where('participant_id', $subscription->participant_id)
+            ->where('program_id', $subscription->program_id)
+            ->where('status', '!=', 'cancelled')
+            ->where(function ($q) use ($subscription) {
+                $q->where('program_subscription_id', $subscription->id)
+                  ->orWhere(function ($q2) {
+                      $q2->where('status', 'active')
+                         ->whereNull('program_subscription_id');
+                  });
+            })
+            ->get();
+
+        foreach ($plans as $plan) {
+            $plan->update(['status' => 'cancelled']);
+            $plan->installments()
+                ->whereIn('status', ['pending', 'overdue'])
+                ->update(['status' => 'cancelled']);
+        }
+
+        return $plans->count();
+    }
 }
