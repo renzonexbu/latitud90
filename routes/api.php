@@ -56,3 +56,11 @@ Route::post('/analytics/payment-initiated', [AnalyticsController::class, 'record
 Route::post('/analytics/payment-completed', [AnalyticsController::class, 'recordPaymentCompleted']);
 Route::post('/analytics/payment-failed', [AnalyticsController::class, 'recordPaymentFailed']);
 Route::post('/analytics/confirmation-changes', [AnalyticsController::class, 'recordConfirmationChanges']);
+
+// ---------------------------------------------------------------------------
+// API pública de estado financiero de programas (solo lectura).
+// SIN AUTENTICACIÓN TODAVÍA: etapa de pruebas. Antes de publicarla hay que
+// ponerle el control de acceso acordado en la propuesta del 2026-10-20.
+// ---------------------------------------------------------------------------
+Route::get('/v1/programas/{codigo}', [\App\Http\Controllers\Api\ProgramFinancialController::class, 'show'])
+    ->name('api.v1.programas.show');

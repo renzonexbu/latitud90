@@ -50,9 +50,16 @@ class RutHelper
         }
         
         $calculatedDv = 11 - ($sum % 11);
-        $calculatedDv = $calculatedDv === 10 ? 'K' : ($calculatedDv === 11 ? '0' : $calculatedDv);
-        
-        return $dv === $calculatedDv;
+        $calculatedDv = match ($calculatedDv) {
+            10 => 'K',
+            11 => '0',
+            default => (string) $calculatedDv,
+        };
+
+        // Comparar como string: antes se usaba === contra un entero, asi que
+        // validate() devolvia false para TODO RUT con digito verificador
+        // numerico (2026-10-20).
+        return (string) $dv === $calculatedDv;
     }
 
     /**
