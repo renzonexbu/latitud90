@@ -862,7 +862,10 @@ class SendPendingPaymentEmails extends Command
                         'external_payment_id' => $result['transaction_id'] ?? $payment->external_payment_id,
                         'installments_number' => $result['installments'] ?? $payment->installments_number,
                         'installment_amount' => $result['installment_amount'] ?? $payment->installment_amount,
-                        'gateway_response' => json_encode($result['full_response'] ?? $result),
+                        // Sin json_encode: el modelo ya castea este campo, y pasarlo
+                        // codificado dejaba el JSON guardado dos veces (214 pagos entre
+                        // marzo y octubre de 2026).
+                        'gateway_response' => $result['full_response'] ?? $result,
                     ]);
 
                     // Actualizar order_detail y order

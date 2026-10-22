@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 
@@ -61,7 +62,6 @@ class Payment extends Model
     protected $casts = [
         'amount' => 'decimal:2',
         'balance' => 'decimal:2',
-        'gateway_response' => 'array',
         'raw_notification' => 'array',
         'transaction_date' => 'datetime:America/Santiago',
         'accounting_date' => 'datetime:America/Santiago',
@@ -74,6 +74,31 @@ class Payment extends Model
         'email_attempts' => 'integer',
         'generated_document_types' => 'array'
     ];
+
+    /**
+     * gateway_response siempre se lee como arreglo.
+     *
+     * Hay 214 pagos cuyo JSON quedó codificado dos veces porque se guardaba ya
+     * serializado sobre un campo casteado. Los lectores se fueron defendiendo
+     * uno por uno con is_string(); el que no lo hizo reventaba con
+     * "array_merge(): Argument #1 must be of type array, string given" al
+     * convertir un AC (Liliam 2026-10-22). Se resuelve en un solo lugar.
+     */
+    protected function gatewayResponse(): Attribute
+    {
+        return Attribute::make(
+            get: function ($value) {
+                $decoded = is_string($value) ? json_decode($value, true) : $value;
+
+                if (is_string($decoded)) {
+                    $decoded = json_decode($decoded, true);
+                }
+
+                return is_array($decoded) ? $decoded : null;
+            },
+            set: fn ($value) => $value === null || is_string($value) ? $value : json_encode($value),
+        );
+    }
 
     protected $appends = [
         'participant_name',
