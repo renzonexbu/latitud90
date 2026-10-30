@@ -87,7 +87,16 @@ Route::get('/reports/procedure-documents', function () {
 
 Route::get('/reports/procedure-documents/download/{procedureDocument}', function (\App\Models\ProcedureDocument $procedureDocument) {
     if (!\Storage::disk('public')->exists($procedureDocument->file_path)) {
-        return back()->withErrors(['error' => 'El archivo no existe']);
+        // El enlace es un <a href> comun, no una visita de Inertia: un
+        // back()->withErrors() redirigia a la misma pagina y el usuario no veia
+        // absolutamente nada, solo que "no descarga" (Liliam 2026-10-30).
+        \Log::warning('Documento de procedimiento sin archivo en disco', [
+            'procedure_document_id' => $procedureDocument->id,
+            'title' => $procedureDocument->title,
+            'file_path' => $procedureDocument->file_path,
+        ]);
+
+        abort(404, 'El archivo de este documento no esta disponible. Vuelva a cargarlo desde el mantenedor de Documentos de Procedimientos.');
     }
 
     return \Storage::disk('public')->download(
