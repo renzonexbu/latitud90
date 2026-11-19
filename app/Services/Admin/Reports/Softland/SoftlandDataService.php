@@ -28,14 +28,16 @@ class SoftlandDataService
         $query = Payment::with(['paymentOption', 'order.participant.emergencyContacts', 'order.program', 'order.participantProgram', 'order.orderDetails', 'orderDetail', 'paymentGateway'])
             ->whereIn('status', ['approved', 'completed'])
             ->whereIn('document_type', ['B2', 'AC'])
-            // Los Créditos Temporarios (CT) NO generan movimiento contable: no
-            // involucran dinero, son un crédito otorgado (Carmen 2026-09-08).
+            // Ni los Créditos Temporarios (CT) ni los Reversos Administrativos
+            // (RA) generan movimiento contable: el CT es un crédito otorgado que
+            // no mueve dinero, y el RA solo deshace un registro previo
+            // (Carmen 2026-09-08 por el CT, 2026-11-19 por el RA).
             // El filtro de document_type ya deja fuera los que se registran con
             // document_type='CT'; esta condición cubre además los que quedaron con
             // document_type B2/AC pero con forma de pago CT (ocurrió en cargas
             // masivas), para que la exclusión sea efectiva en todos los casos.
             ->whereDoesntHave('paymentOption', function ($q) {
-                $q->where('report_code', 'CT');
+                $q->whereIn('report_code', ['CT', 'RA']);
             })
             // Excluir pagos que ya se procesan como cuotas de suscripción (evitar duplicados)
             ->whereNotIn('id', function ($q) {
@@ -1496,9 +1498,9 @@ class SoftlandDataService
         // Mismo criterio que la consulta de pagos: los Créditos Temporarios (CT)
         // no generan movimiento contable (Carmen 2026-09-08).
         ->whereDoesntHave('payment', function ($q) {
-            $q->where('document_type', 'CT')
+            $q->whereIn('document_type', ['CT', 'RA'])
               ->orWhereHas('paymentOption', function ($po) {
-                  $po->where('report_code', 'CT');
+                  $po->whereIn('report_code', ['CT', 'RA']);
               });
         });
 
