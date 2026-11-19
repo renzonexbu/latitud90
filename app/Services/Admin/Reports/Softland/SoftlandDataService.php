@@ -5,6 +5,7 @@ namespace App\Services\Admin\Reports\Softland;
 use App\Models\Payment;
 use Illuminate\Support\Collection;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class SoftlandDataService
