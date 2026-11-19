@@ -663,16 +663,63 @@ class SoftlandDataService
         return array_merge($defaults, $data);
     }
 
+    /** Cache id -> nombre de la tabla document (RUT / PASAPORTE / DNI) */
+    private static ?array $tiposDocumento = null;
+
     /**
-     * Quita puntos, guiones y dígito verificador de un RUT para código auxiliar Softland
+     * Código auxiliar Softland a partir del documento del pagador.
+     *
+     * Solo a los RUT se les quita el dígito verificador. Antes se aplicaba a
+     * todos: se borraban las letras y se cortaba el último carácter, así que un
+     * pasaporte CG8JM7CPP terminaba reportado como "8" y un DNI 50.041.248 como
+     * "5004124" (Carmen 2026-11-19, cuenta 1-1-02-014 de septiembre).
+     *
+     * @param mixed $documentType id de la tabla document, su nombre, o null
      */
-    private function removeRutDV(string $documentNumber): string
+    private function removeRutDV(string $documentNumber, $documentType = null): string
     {
+        $documentNumber = trim($documentNumber);
+        if ($documentNumber === '') {
+            return '';
+        }
+
+        if (!$this->esRut($documentNumber, $documentType)) {
+            // Pasaporte o DNI: no tienen dígito verificador y pueden llevar
+            // letras. Se entregan completos, solo sin separadores.
+            return strtoupper(preg_replace('/[^0-9A-Za-z]/', '', $documentNumber));
+        }
+
         $clean = preg_replace('/[^0-9kK]/', '', $documentNumber);
         if (strlen($clean) >= 2) {
             return substr($clean, 0, -1); // Sin dígito verificador
         }
         return strtoupper($clean);
+    }
+
+    /**
+     * Decide si el documento es un RUT chileno.
+     *
+     * Se prefiere el tipo declarado. Cuando no hay tipo (buyer_data antiguo),
+     * se cae en la validación del dígito verificador, que es lo único que
+     * distingue un RUT de un DNI: ambos son solo dígitos.
+     */
+    private function esRut(string $documentNumber, $documentType = null): bool
+    {
+        if (is_string($documentType) && trim($documentType) !== '') {
+            return strtoupper(trim($documentType)) === 'RUT';
+        }
+
+        if (is_numeric($documentType)) {
+            if (self::$tiposDocumento === null) {
+                self::$tiposDocumento = DB::table('document')->pluck('name', 'id')->all();
+            }
+            $nombre = self::$tiposDocumento[(int) $documentType] ?? null;
+            if ($nombre !== null) {
+                return strtoupper(trim($nombre)) === 'RUT';
+            }
+        }
+
+        return \App\Helpers\RutHelper::validate($documentNumber);
     }
 
 
@@ -685,7 +732,7 @@ class SoftlandDataService
         if (!$orderDetail || !$orderDetail->document_number) {
             return '';
         }
-        return $this->removeRutDV($orderDetail->document_number);
+        return $this->removeRutDV($orderDetail->document_number, $orderDetail->document_type);
     }
 
     /**
@@ -1529,12 +1576,12 @@ class SoftlandDataService
         $auxiliarCode = '';
         if ($isAC) {
             if (!empty($buyerData['document_number'])) {
-                $auxiliarCode = $this->removeRutDV($buyerData['document_number']);
+                $auxiliarCode = $this->removeRutDV($buyerData['document_number'], $buyerData['document_type'] ?? null);
             } elseif ($participant && $participant->document_number) {
-                $auxiliarCode = $this->removeRutDV($participant->document_number);
+                $auxiliarCode = $this->removeRutDV($participant->document_number, $participant->document_type ?? null);
             }
         } elseif ($participant && $participant->document_number) {
-            $auxiliarCode = $this->removeRutDV($participant->document_number);
+            $auxiliarCode = $this->removeRutDV($participant->document_number, $participant->document_type ?? null);
         }
 
         // Cuenta contable:
@@ -1752,9 +1799,9 @@ class SoftlandDataService
         if ($isAC) {
             $buyerData = $installment['buyer_data'] ?? [];
             if (!empty($buyerData['document_number'])) {
-                $acAuxiliar = $this->removeRutDV($buyerData['document_number']);
+                $acAuxiliar = $this->removeRutDV($buyerData['document_number'], $buyerData['document_type'] ?? null);
             } elseif (($installment['participant'] ?? null) && $installment['participant']->document_number) {
-                $acAuxiliar = $this->removeRutDV($installment['participant']->document_number);
+                $acAuxiliar = $this->removeRutDV($installment['participant']->document_number, $installment['participant']->document_type ?? null);
             }
         }
         $acFecha = $isAC ? $this->formatDateDDMMYYYY($installment['paid_at']) : '';
@@ -1890,7 +1937,7 @@ class SoftlandDataService
         // RUT pagador sin DV
         $payerAuxiliarCode = '';
         if (!empty($buyerData['document_number'])) {
-            $payerAuxiliarCode = $this->removeRutDV($buyerData['document_number']);
+            $payerAuxiliarCode = $this->removeRutDV($buyerData['document_number'], $buyerData['document_type'] ?? null);
         }
 
         // Método de pago: suscripciones siempre VP (PAT y VPI mapean a VP)
@@ -1935,9 +1982,9 @@ class SoftlandDataService
         // RUT pagador (buyer_data) sin DV, fallback al participante
         $payerAuxiliarCode = '';
         if (!empty($buyerData['document_number'])) {
-            $payerAuxiliarCode = $this->removeRutDV($buyerData['document_number']);
+            $payerAuxiliarCode = $this->removeRutDV($buyerData['document_number'], $buyerData['document_type'] ?? null);
         } elseif ($participant && $participant->document_number) {
-            $payerAuxiliarCode = $this->removeRutDV($participant->document_number);
+            $payerAuxiliarCode = $this->removeRutDV($participant->document_number, $participant->document_type ?? null);
         }
 
         // Método de pago: suscripciones siempre VP (PAT y VPI mapean a VP)
