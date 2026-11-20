@@ -1535,12 +1535,16 @@ class SoftlandDataService
                     ->where('program_id', $plan->program_id)
                     ->first();
 
-            // Solo incluir si la suscripción está activa
-            if (!$subscription || $subscription->status !== 'ACTIVA') {
-                return null;
-            }
-
-            $buyerData = $subscription->buyer_data ?? [];
+            // NO se filtra por estado de la suscripción. La cuota ya está marcada
+            // is_paid con su payment asociado: la plata se cobró. Que el PAT se
+            // diera de baja después no borra ese cargo, y exigir status='ACTIVA'
+            // dejaba 3.347 cuotas pagadas fuera del comprobante contable
+            // (Carmen 2026-11-20).
+            //
+            // Tampoco hay doble conteo: generateMovements() excluye de la consulta
+            // de pagos todo payment ligado a una cuota pagada, así que estos
+            // cobros solo pueden entrar por acá.
+            $buyerData = $subscription?->buyer_data ?? [];
 
             return [
                 'installment_id' => $installment->id,
