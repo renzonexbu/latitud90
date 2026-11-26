@@ -1,0 +1,1 @@
+function a(n){return Math.floor(n+.4)}function m(n,t){if(t<=0)return[];n=Math.round(n);const r=a(n/t),u=r*(t-1),s=n-u,o=new Array(t-1).fill(r);return o.push(s),o}function e(n,t){return m(n,t)[0]||0}function i(n){const t=Number(n??0);return new Intl.NumberFormat("es-CL",{minimumFractionDigits:0,maximumFractionDigits:0}).format(t)}export{i as f,e as g,m as s};

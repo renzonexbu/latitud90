@@ -1,0 +1,17 @@
+---
+# Deploy desde cPanel > Git Version Control (mismo esquema que RHFaos).
+#
+# - Se usa el binario de PHP 8.5 explícito: el `php` de la consola del
+#   servidor sigue siendo 8.2 y no coincide con el vendor instalado.
+# - storage/ y public/storage NO se tocan: ahí viven boletas, contratos y
+#   documentos subidos, y el symlink de public/storage ya se rompió una vez.
+# - Sin --delete: lo que exista en el servidor y no en el repo se conserva.
+# - vendor/ se instala acá; public/build viene commiteado desde local.
+deployment:
+    tasks:
+        - export DEPLOYPATH=/home/latitud/public_html/
+        - export PHPBIN=/opt/cpanel/ea-php85/root/usr/bin/php
+        - /usr/bin/rsync -rtW --exclude=".git" --exclude=".env" --exclude=".cpanel.yml" --exclude="storage/" --exclude="public/storage" --exclude="vendor/" --exclude="node_modules/" ./ $DEPLOYPATH
+        - cd $DEPLOYPATH && $PHPBIN /usr/local/bin/composer install --no-dev --optimize-autoloader --no-interaction
+        - cd $DEPLOYPATH && $PHPBIN artisan migrate --force
+        - cd $DEPLOYPATH && $PHPBIN artisan optimize:clear

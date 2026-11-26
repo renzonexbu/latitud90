@@ -1,0 +1,1 @@
+const o="/build/images/logo-color-DrCAl5-L.svg",l=Object.freeze(Object.defineProperty({__proto__:null,default:o},Symbol.toStringTag,{value:"Module"})),e="/build/images/logo-YY7NGR-7.svg",t=Object.freeze(Object.defineProperty({__proto__:null,default:e},Symbol.toStringTag,{value:"Module"}));export{t as _,l as a,o as b,e as l};

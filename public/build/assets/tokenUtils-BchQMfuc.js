@@ -1,0 +1,1 @@
+function t(r){const e=JSON.stringify(r);return btoa(e).replace(/\+/g,"-").replace(/\//g,"_").replace(/=/g,"")}function o(r){try{let e=r.replace(/-/g,"+").replace(/_/g,"/");for(;e.length%4;)e+="=";const n=atob(e);return JSON.parse(n)}catch(e){return console.error("Error decodificando token:",e),null}}export{o as d,t as e};
