@@ -5,13 +5,16 @@
 #   servidor sigue siendo 8.2 y no coincide con el vendor instalado.
 # - storage/ y public/storage NO se tocan: ahí viven boletas, contratos y
 #   documentos subidos, y el symlink de public/storage ya se rompió una vez.
+# - El .htaccess de la raíz NO se toca: cPanel le escribe ahí el handler de
+#   PHP 8.5 y los límites del MultiPHP INI Editor. Si el deploy lo pisaba, el
+#   sitio caía al PHP 8.1 por defecto del servidor y dejaba de funcionar.
 # - Sin --delete: lo que exista en el servidor y no en el repo se conserva.
 # - vendor/ se instala acá; public/build viene commiteado desde local.
 deployment:
     tasks:
         - export DEPLOYPATH=/home/latitud/public_html/
         - export PHPBIN=/opt/cpanel/ea-php85/root/usr/bin/php
-        - /usr/bin/rsync -rtW --exclude=".git" --exclude=".env" --exclude=".cpanel.yml" --exclude="storage/" --exclude="public/storage" --exclude="vendor/" --exclude="node_modules/" ./ $DEPLOYPATH
+        - /usr/bin/rsync -rtW --exclude=".git" --exclude=".env" --exclude="/.htaccess" --exclude=".cpanel.yml" --exclude="storage/" --exclude="public/storage" --exclude="vendor/" --exclude="node_modules/" ./ $DEPLOYPATH
         - cd $DEPLOYPATH && $PHPBIN /usr/local/bin/composer install --no-dev --optimize-autoloader --no-interaction
         - cd $DEPLOYPATH && $PHPBIN artisan migrate --force
         - cd $DEPLOYPATH && $PHPBIN artisan optimize:clear
