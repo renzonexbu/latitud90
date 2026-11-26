@@ -170,15 +170,21 @@ class GetSubscriptionsService
             // "Ashley Kim Kwon" aunque falte el apellido del medio.
             $spaced = '%' . preg_replace('/\s+/', '%', $term) . '%';
 
-            $query->where(function ($outer) use ($like, $spaced) {
-                $outer->whereHas('participant', function ($q) use ($like, $spaced) {
+            $query->where(function ($outer) use ($like, $spaced, $term) {
+                $outer->whereHas('participant', function ($q) use ($spaced, $term) {
                     $q->whereRaw(
                         "CONCAT_WS(' ', first_name, second_name, first_last_name, second_last_name) LIKE ?",
                         [$spaced]
-                    )->orWhere('document_number', 'like', $like);
+                    )->orWhereDocumentLike('document_number', $term);
                 })
                 // Datos del pagador (nombre, email, RUT) guardados en la suscripción
-                ->orWhere('buyer_data', 'like', $like);
+                ->orWhere('buyer_data', 'like', $like)
+                // El RUT del pagador va dentro del JSON con el formato con que se
+                // tipeó; se compara normalizado igual que el resto de buscadores.
+                ->orWhereRaw(
+                    "REPLACE(REPLACE(JSON_UNQUOTE(JSON_EXTRACT(buyer_data, '$.document_number')), '.', ''), '-', '') LIKE ?",
+                    ['%' . preg_replace('/[.\\-\\s]/', '', $term) . '%']
+                );
             });
         }
 

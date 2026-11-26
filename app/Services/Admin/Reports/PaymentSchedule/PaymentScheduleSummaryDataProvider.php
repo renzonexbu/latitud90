@@ -205,8 +205,14 @@ class PaymentScheduleSummaryDataProvider
                 DB::raw('COUNT(ip.id) as installment_plans_count')
             )
             ->whereIn('p.status', ['pending_payment', 'confirmed'])
-            ->whereNotIn('ppd.discount_type', ['released']) // Excluir liberados
-            ->orWhereNull('ppd.discount_type')
+            // Excluir liberados. El OR va agrupado: suelto, partía toda la consulta
+            // en "(estado y sin liberado) O (sin descuento y el resto)", y cualquier
+            // participante con un descuento se saltaba los filtros de búsqueda,
+            // programa, ejecutivo y estado que se agregan después (2026-11-26).
+            ->where(function ($q) {
+                $q->whereNotIn('ppd.discount_type', ['released'])
+                  ->orWhereNull('ppd.discount_type');
+            })
             ->groupBy(
                 'p.id', 'p.first_name', 'p.first_last_name', 'p.second_last_name',
                 'p.document_number', 'p.email', 'pp.is_active', 'pp.created_at', 'pp.individual_price',
@@ -238,12 +244,13 @@ class PaymentScheduleSummaryDataProvider
         }
 
         if (!empty($filters['search'])) {
-            $search = '%' . $filters['search'] . '%';
-            $query->where(function($q) use ($search) {
+            $term = $filters['search'];
+            $search = '%' . $term . '%';
+            $query->where(function($q) use ($search, $term) {
                 $q->where('p.first_name', 'like', $search)
                   ->orWhere('p.first_last_name', 'like', $search)
                   ->orWhere('p.second_last_name', 'like', $search)
-                  ->orWhere('p.document_number', 'like', $search)
+                  ->orWhereDocumentLike('p.document_number', $term)
                   ->orWhere(DB::raw("CONCAT(p.first_name, ' ', p.first_last_name, ' ', p.second_last_name)"), 'like', $search);
             });
         }

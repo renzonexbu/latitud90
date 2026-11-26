@@ -42,7 +42,7 @@ class PaymentConfirmationLogsService
         if (!empty($filters['participant_search'])) {
             $search = $filters['participant_search'];
             $query->whereHas('orderDetail.order.participant', function ($q) use ($search) {
-                $q->where('document_number', 'like', "%{$search}%")
+                $q->whereDocumentLike('document_number', $search)
                   ->orWhereRaw("CONCAT(first_name, ' ', first_last_name) LIKE ?", ["%{$search}%"]);
             });
         }

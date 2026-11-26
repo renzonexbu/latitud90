@@ -42,6 +42,8 @@ class AppServiceProvider extends ServiceProvider
     {
         // Configurar timezone global
         date_default_timezone_set('America/Santiago');
+
+        $this->registerDocumentSearch();
         
         // Optimización de memoria
         if ($this->app->isProduction()) {
@@ -78,6 +80,43 @@ class AppServiceProvider extends ServiceProvider
             return array_merge((new ZiggyZiggy())->toArray(), [
                 'location' => request()->url(),
             ]);
+        });
+    }
+
+    /**
+     * Búsqueda por documento (RUT, pasaporte, DNI) sin importar el formato.
+     *
+     *     $q->whereDocumentLike('p.document_number', $busqueda)
+     *     $q->orWhereDocumentLike('document_number', $busqueda)
+     *
+     * En la base los documentos están guardados en formatos mezclados
+     * (12.345.678-9, 123456789) y muchos buscadores comparaban el texto tal cual,
+     * así que un participante aparecía o no según cómo se tipeara el RUT
+     * (Liliam 2026-11-26). Se quitan puntos, guiones y espacios de los dos lados;
+     * las letras se conservan para no romper la búsqueda de pasaportes.
+     */
+    private function registerDocumentSearch(): void
+    {
+        \Illuminate\Database\Query\Builder::macro('whereDocumentLike', function (string $column, ?string $term, string $boolean = 'and') {
+            // La columna va dentro del SQL: solo se aceptan nombres simples.
+            if (!preg_match('/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$/', $column)) {
+                throw new \InvalidArgumentException("Columna de documento inválida: {$column}");
+            }
+
+            $limpio = preg_replace('/[.\-\s]/', '', (string) $term);
+            if ($limpio === '') {
+                return $this;
+            }
+
+            return $this->whereRaw(
+                "REPLACE(REPLACE(REPLACE({$column}, '.', ''), '-', ''), ' ', '') LIKE ?",
+                ['%' . $limpio . '%'],
+                $boolean
+            );
+        });
+
+        \Illuminate\Database\Query\Builder::macro('orWhereDocumentLike', function (string $column, ?string $term) {
+            return $this->whereDocumentLike($column, $term, 'or');
         });
     }
 }

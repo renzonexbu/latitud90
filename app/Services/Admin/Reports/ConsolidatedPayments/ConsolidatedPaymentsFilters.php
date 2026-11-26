@@ -42,7 +42,7 @@ class ConsolidatedPaymentsFilters
         if (!empty($filters['participantQuery'])) {
             $search = trim($filters['participantQuery']);
             $query->where(function($q) use ($search) {
-                $q->where('p.document_number', 'like', "%{$search}%")
+                $q->whereDocumentLike('p.document_number', $search)
                   ->orWhereRaw("CONCAT_WS(' ', p.first_name, p.second_name, p.first_last_name, p.second_last_name) LIKE ?", ["%{$search}%"]);
             });
         }

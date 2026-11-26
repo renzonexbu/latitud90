@@ -125,7 +125,7 @@ class TermsAcceptanceDataProvider
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('document_number', 'like', "%{$search}%")
+                    ->orWhereDocumentLike('document_number', $search)
                     ->orWhere('email', 'like', "%{$search}%")
                     ->orWhereHas('order.participant', function ($q2) use ($search) {
                         $q2->where('first_name', 'like', "%{$search}%")

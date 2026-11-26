@@ -115,11 +115,12 @@ class ChargeAttemptsDataProvider
         }
 
         if (!empty($filters['participantSearch'])) {
-            $search = '%' . $filters['participantSearch'] . '%';
-            $query->where(function ($q) use ($search) {
+            $term = $filters['participantSearch'];
+            $search = '%' . $term . '%';
+            $query->where(function ($q) use ($search, $term) {
                 $q->where('p.first_name', 'like', $search)
                   ->orWhere('p.first_last_name', 'like', $search)
-                  ->orWhere('p.document_number', 'like', $search);
+                  ->orWhereDocumentLike('p.document_number', $term);
             });
         }
 

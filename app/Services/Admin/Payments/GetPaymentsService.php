@@ -102,7 +102,7 @@ class GetPaymentsService
         // Filtro de búsqueda por RUT o Apellido del participante
         if ($request->participant_name) {
             $query->whereHas('order.participant', function ($q) use ($request) {
-                $q->where('document_number', 'like', '%' . $request->participant_name . '%')
+                $q->whereDocumentLike('document_number', $request->participant_name)
                   ->orWhere('first_last_name', 'like', '%' . $request->participant_name . '%')
                   ->orWhere('second_last_name', 'like', '%' . $request->participant_name . '%');
             });
@@ -322,7 +322,7 @@ class GetPaymentsService
         // Filtro de búsqueda por RUT o Apellido del participante
         if ($request->participant_name) {
             $query->whereHas('installmentPlan.participant', function ($q) use ($request) {
-                $q->where('document_number', 'like', '%' . $request->participant_name . '%')
+                $q->whereDocumentLike('document_number', $request->participant_name)
                   ->orWhere('first_last_name', 'like', '%' . $request->participant_name . '%')
                   ->orWhere('second_last_name', 'like', '%' . $request->participant_name . '%');
             });

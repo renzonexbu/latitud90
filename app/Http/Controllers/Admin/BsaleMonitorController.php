@@ -304,8 +304,13 @@ class BsaleMonitorController extends Controller
             'order.programCourse',
             'orderDetail',
         ])
-            ->whereNotNull('bsale_document_id')
-            ->orWhereNotNull('bsale_number');
+            // Agrupado: con el OR suelto, toda boleta con bsale_document_id se
+            // saltaba los filtros de fecha y la búsqueda que se agregan abajo, y el
+            // historial devolvía casi todo sin importar lo filtrado (2026-11-26).
+            ->where(function ($q) {
+                $q->whereNotNull('bsale_document_id')
+                  ->orWhereNotNull('bsale_number');
+            });
 
         // Filtro por fecha desde
         if ($request->date_from) {
@@ -321,13 +326,15 @@ class BsaleMonitorController extends Controller
         if ($request->search) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('id', $search)
+                // Solo comparar contra el ID si lo buscado es un número: MySQL
+                // convierte "23.022.679-2" en 23 y traía el pago 23 como resultado.
+                $q->when(ctype_digit($search), fn ($q) => $q->where('id', $search))
                     ->orWhere('bsale_number', 'like', "%{$search}%")
                     ->orWhere('bsale_document_id', 'like', "%{$search}%")
                     ->orWhereHas('order.participant', function ($sq) use ($search) {
                         $sq->where('first_name', 'like', "%{$search}%")
                             ->orWhere('first_last_name', 'like', "%{$search}%")
-                            ->orWhere('document_number', 'like', "%{$search}%");
+                            ->orWhereDocumentLike('document_number', $search);
                     });
             });
         }
