@@ -33,6 +33,16 @@
 
             <!-- Form Content - Two Columns -->
             <div class="p-8 overflow-y-auto flex-1">
+                <!-- Error general del servidor (no asociado a un campo). Antes no se
+                     mostraba en ninguna parte y el usuario no se enteraba de que el
+                     participante no se había creado. -->
+                <div
+                    v-if="errors.error"
+                    class="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+                    role="alert"
+                >
+                    {{ errors.error }}
+                </div>
                 <form
                     @submit.prevent="saveParticipant"
                     class="flex flex-row gap-8"
@@ -786,6 +796,14 @@ export default {
                         emergency_contacts: emergencyContacts,
                     },
                     {
+                        // Si vuelve con errores, conservar la página tal cual: el modal
+                        // sigue abierto con lo escrito y muestra qué corregir. Sin esto
+                        // la página se volvía a montar, el modal se cerraba solo y el
+                        // error no aparecía en ningún lado (Liliam 2026-11-26).
+                        // Si sale bien, la lista se refresca y el layout muestra el
+                        // aviso de "Participante creado exitosamente".
+                        preserveState: "errors",
+                        preserveScroll: "errors",
                         onSuccess: () => {
                             this.closeModal();
                         },
