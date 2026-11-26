@@ -58,9 +58,16 @@ Route::post('/analytics/payment-failed', [AnalyticsController::class, 'recordPay
 Route::post('/analytics/confirmation-changes', [AnalyticsController::class, 'recordConfirmationChanges']);
 
 // ---------------------------------------------------------------------------
-// API pública de estado financiero de programas (solo lectura).
-// SIN AUTENTICACIÓN TODAVÍA: etapa de pruebas. Antes de publicarla hay que
-// ponerle el control de acceso acordado en la propuesta del 2026-10-20.
+// API de estado financiero de programas (solo lectura) — DESACTIVADA.
+//
+// Es el prototipo de la propuesta del 2026-10-20 y todavía no está aprobada.
+// No tiene control de acceso: publicada así, cualquiera que adivine un código
+// de programa vería nombres, RUT y deudas de los participantes.
+//
+// No se puede limitar por entorno porque producción corre con APP_ENV=local.
+// Se reactiva cuando se apruebe la propuesta, agregándole la Opción A (clave
+// única) o B (clave por cliente). El controlador queda en
+// app/Http/Controllers/Api/ProgramFinancialController.php.
 // ---------------------------------------------------------------------------
-Route::get('/v1/programas/{codigo}', [\App\Http\Controllers\Api\ProgramFinancialController::class, 'show'])
-    ->name('api.v1.programas.show');
+// Route::get('/v1/programas/{codigo}', [\App\Http\Controllers\Api\ProgramFinancialController::class, 'show'])
+//     ->name('api.v1.programas.show');
