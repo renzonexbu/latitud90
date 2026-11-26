@@ -1802,17 +1802,25 @@ class CourseService
         foreach ($participantPrograms as $pp) {
             $participant = $pp->participant;
 
-            // Get total paid amount (only completed/approved payments with amount > 0)
-            $totalPaid = \App\Models\Payment::whereHas('order', function ($q) use ($participant, $programCourseId) {
+            // Total pagado NETO: descuenta notas de crédito y reversos, que se
+            // guardan en negativo. Antes se sumaban solo los montos positivos y la
+            // columna Pagos mostraba más de lo realmente pagado (Liliam 2026-11-26).
+            // Es el mismo cálculo que usan los reportes.
+            $totalPaid = \App\Services\Admin\ParticipantFinancialService::getTotalPaid(
+                $participant->id,
+                $programCourseId
+            );
+
+            // El permiso para eliminar NO puede salir del total neto: a quien se le
+            // devolvió todo le quedaría en 0 y el sistema permitiría borrarlo junto
+            // con su historial de pagos. Se mira si alguna vez pagó algo.
+            $hasPayments = \App\Models\Payment::whereHas('order', function ($q) use ($participant, $programCourseId) {
                 $q->where('participant_id', $participant->id)
                   ->where('program_id', $programCourseId);
             })
             ->whereIn('status', ['completed', 'approved'])
             ->where('amount', '>', 0)
-            ->sum('amount');
-
-            // has_payments is true only if there are actual confirmed payments with amount > 0
-            $hasPayments = $totalPaid > 0;
+            ->exists();
 
             $participantsData[] = [
                 'participant_program_id' => $pp->id,
