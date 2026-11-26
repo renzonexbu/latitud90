@@ -206,6 +206,8 @@ class CreateRefundController extends Controller
             'client_document_type' => 'nullable|exists:document,id',
             'client_rut' => 'required|string|max:255',
             'client_name' => 'required|string|max:255',
+
+            'notes' => 'nullable|string|max:1000',
         ]);
 
         if ($validator->fails()) {
@@ -233,6 +235,8 @@ class CreateRefundController extends Controller
                 'client_document_type' => $request->client_document_type,
                 'client_rut' => $request->client_rut,
                 'client_name' => $request->client_name,
+
+                'notes' => $request->notes,
             ];
 
             // Ejecutar el servicio

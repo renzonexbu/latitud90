@@ -405,6 +405,8 @@ class CreateRefundService
                 'created_manually' => true,
                 'payment_type' => 'refund',
                 'refund_reason' => 'Nota de crédito procesada manualmente',
+                // Misma clave que usan los pagos manuales (StorePaymentService).
+                'notes' => $data['notes'] ?? null,
                 'fiscal_data' => [
                     'sii_code' => $data['sii_code'] ?? null,
                     'document_number' => $data['document_number'] ?? null,
@@ -457,6 +459,7 @@ class CreateRefundService
                 'payment_type' => 'refund',
                 'refund_type' => $paymentOption->code,
                 'refund_reason' => $refundReason,
+                'notes' => $data['notes'] ?? null,
                 // Contra qué se imputa el RA: CT (crédito temporal), AC (anticipo)
                 // o AP (aporte). Lo lee ParticipantFinancialService para netear el
                 // reverso contra el casillero correcto en vez de dejarlo aparte.

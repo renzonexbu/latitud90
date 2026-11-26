@@ -646,6 +646,9 @@ class ImportRefundsService
                 'refund_type' => $refundTypeInfo['refund_type'],
                 'ra_imputation_type' => $refundTypeInfo['ra_imputation_type'] ?? null,
                 'authorization_code' => !empty($rowData['nro_aut']) ? trim((string) $rowData['nro_aut']) : null,
+                // La columna Notas se reconocía al leer el archivo pero no se
+                // pasaba al servicio, así que se perdía (Liliam 2026-11-26).
+                'notes' => !empty($rowData['notas']) ? trim((string) $rowData['notas']) : null,
             ];
 
             Log::info("Ejecutando CreateRefundService con datos: " . json_encode($refundData, JSON_UNESCAPED_UNICODE));
